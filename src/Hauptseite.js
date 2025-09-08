@@ -103,7 +103,7 @@ function Hauptseite() {
 
   // --- PDF LADEN ---
   useEffect(() => {
-    const url = '/masti_upload_version-4.pdf'; // liegt in public/
+    const url = `${process.env.PUBLIC_URL}/masti_upload_version-4.pdf`; // liegt in public/
     const loadingTask = pdfjsLib.getDocument(url);
 
     loadingTask.promise.then(
