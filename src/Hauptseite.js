@@ -1,3 +1,4 @@
+import Archive from './Archive';
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +15,7 @@ function Hauptseite() {
   const [isMobile, setIsMobile] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+
   // --- MENU state & helpers ---
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -29,7 +31,15 @@ function Hauptseite() {
   }, [menuOpen]);
 
   // --- INTERAKTIVER TITEL (TRACES OF HIV) ---
-  const TITLE_TEXT = 'TRACES OF HIV';
+  const MENU_SENTENCES = {
+    About: 'What is this archive?',
+    Archive: 'Browse all items',
+    Shuffle: 'Discover at random',
+    Upload: 'Contribute your own',
+    Imprint: 'Legal & contact',
+  };
+  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [titleText, setTitleText] = useState('TRACES OF HIV');
   const [glitchSet, setGlitchSet] = useState(new Set());
   const timeoutsRef = useRef([]);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
@@ -56,13 +66,23 @@ function Hauptseite() {
     };
   }, []);
 
+  // Keep header title in sync with selected menu
+  useEffect(() => {
+    if (selectedMenu && MENU_SENTENCES[selectedMenu]) {
+      setTitleText(MENU_SENTENCES[selectedMenu]);
+      triggerGlitch(3);
+    } else {
+      setTitleText('TRACES OF HIV');
+    }
+  }, [selectedMenu]);
+
   const triggerGlitch = (strength = 2) => {
-    const total = TITLE_TEXT.length;
+    const total = titleText.length;
     const picks = Math.max(1, Math.floor(Math.random() * (strength + 2)));
     const indices = new Set(glitchSet);
     for (let i = 0; i < picks; i++) {
       const idx = Math.floor(Math.random() * total);
-      if (TITLE_TEXT[idx] === ' ') continue; // Leerzeichen nicht glitchen
+      if (titleText[idx] === ' ') continue; // Leerzeichen nicht glitchen
       indices.add(idx);
       const to = setTimeout(() => {
         setGlitchSet((prev) => {
@@ -368,7 +388,7 @@ function Hauptseite() {
       onMouseDown={(e) => {
         const el = e.target;
         const isInteractive = el.closest && el.closest('a, button, [role="button"], input, textarea, select');
-        if (!isInteractive) setMenuOpen(true);
+        if (!menuOpen && !isInteractive) setMenuOpen(true);
       }}
       style={{
         width: '100vw',
@@ -606,7 +626,7 @@ function Hauptseite() {
       {/* INTERAKTIVER HEADER-TITEL */}
       <header className="_pageHeader" aria-hidden>
         <div className="_titleLine">
-          {TITLE_TEXT.split('').map((ch, i) => (
+          {titleText.split('').map((ch, i) => (
             <span key={i} className={glitchSet.has(i) ? '_titleLetter _glitch' : '_titleLetter'}>
               {ch}
             </span>
@@ -615,7 +635,15 @@ function Hauptseite() {
       </header>
 
       {/* Fullpage Menu Overlay (separate component) */}
-      <RedMenuOverlay open={menuOpen} onClose={() => setMenuOpen(false)} items={[ 'Archive', 'Bibliographies', 'About' ]} />
+      <RedMenuOverlay
+        open={menuOpen}
+        onClose={() => { setMenuOpen(false); setSelectedMenu(null); }}
+        items={['About', 'Archive', 'Shuffle', 'Upload', 'Imprint']}
+        selectedKey={selectedMenu}
+        onSelect={(key) => setSelectedMenu(key)}
+        onBack={() => setSelectedMenu(null)}
+        sentences={MENU_SENTENCES}
+      />
 
       {/* Custom Cursor Dot (white when menu is open) */}
       <div ref={cursorRef} className={`_cursorDot ${menuOpen ? '_white' : '_red'}`} aria-hidden />
@@ -719,7 +747,7 @@ function Hauptseite() {
             aria-controls="archive-sheet"
             aria-expanded={sheetOpen}
           >
-            Bibliographies
+            Archive
           </button>
 
           <div
@@ -781,6 +809,13 @@ function Hauptseite() {
       )}
       </AnimatePresence>
 
+      {/* ARCHIVE on red menu layer */}
+      {menuOpen && selectedMenu === 'Archive' && (
+        <Archive
+          onClose={() => { /* keep red overlay; only dismiss Archive panel */ setSelectedMenu(null); }}
+          onOpenItem={(id) => window.location.assign(`/detail/${id}`)}
+        />
+      )}
       {/* Removed old CursorComponent */}
     </div>
   );

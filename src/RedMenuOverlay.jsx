@@ -1,5 +1,10 @@
 // src/RedMenuOverlay.jsx
 import React, { useEffect, useRef, useState } from 'react';
+import About from './About';
+import Archive from './Archive';
+import Shuffle from './Shuffle';
+import Upload from './Upload';
+import Imprint from './Imprint';
 
 /**
  * Fullscreen rotes Fade-Menü (Titel bleibt darüber sichtbar).
@@ -7,7 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
  * - Klick auf Items schließt das Menü (Navigation kann oben drauf gesetzt werden).
  * - Items animieren „glitchy“ wie der Titel.
  */
-export default function RedMenuOverlay({ open, onClose, items = [] }) {
+export default function RedMenuOverlay({ open, onClose, items = [], selectedKey, onSelect, onBack, sentences = {} }) {
   const [moving, setMoving] = useState(false);
   const moveTO = useRef(null);
 
@@ -109,6 +114,14 @@ export default function RedMenuOverlay({ open, onClose, items = [] }) {
       aria-hidden={false}
     >
       <style>{`
+        ._contentWrap { display: grid; place-items: center; min-height: 100%; padding: clamp(10px,2vw,20px); }
+        ._contentInner { width: min(900px, 86vw); color: #fff; text-align: left; }
+        ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 64px); letter-spacing: 0.04em; text-transform: none; margin: 0 0 12px; }
+        ._backBtn { position: absolute; top: clamp(12px, 2vh, 20px); left: clamp(12px, 2vw, 20px); z-index: 10; background: rgba(255,255,255,0.96); color: #cc0000; border: none; border-radius: 999px; padding: 10px 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
+        ._backBtn:hover { filter: brightness(0.96); transform: translateY(-1px); }
+        ._backBtn:active { transform: translateY(0); }
+        ._contentBody { font-size: clamp(14px, 2.4vw, 18px); line-height: 1.6; color: #fff; }
+        ._menuList._hidden { display: none; }
         ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: auto; }
         /* Solid red backdrop (no transparency) */
         ._menuOverlay::before { content: ''; position: absolute; inset: 0; background: rgb(255, 0, 0); }
@@ -130,6 +143,28 @@ export default function RedMenuOverlay({ open, onClose, items = [] }) {
         ._menuClose:hover { opacity: .9; }
         ._menuClose:focus { outline: 2px solid rgba(255,255,255,.75); outline-offset: 2px; border-radius: 6px; }
         ._drawPad { position: absolute; inset: 0; z-index: 8; pointer-events: auto; background: transparent; }
+
+        /* Controls bar styles (centered under global header) */
+        ._controlsBar {
+          position: absolute;
+          top: calc(var(--hdrH, 120px) + 8px);
+          left: 0; right: 0;
+          display: flex; align-items: center; justify-content: center;
+          gap: clamp(10px, 2.6vw, 22px);
+          z-index: 10;
+          pointer-events: auto;
+        }
+        ._ctrlBtn {
+          background: rgba(255,255,255,0.96);
+          color: #cc0000;
+          border: none; border-radius: 999px;
+          padding: 10px 14px; font-weight: 800; text-transform: uppercase;
+          letter-spacing: .06em; cursor: pointer; box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+        }
+        ._ctrlBtn:hover { filter: brightness(0.96); transform: translateY(-1px); }
+        ._ctrlBtn:active { transform: translateY(0); }
+        ._ctrlBtn._close { background: rgba(255,255,255,0.92); }
+        ._ctrlBtn._back  { background: rgba(255,255,255,0.96); }
       `}</style>
       {/* White drawing pad (canvas) */}
       <canvas
@@ -141,31 +176,44 @@ export default function RedMenuOverlay({ open, onClose, items = [] }) {
         onTouchStart={(e) => e.stopPropagation()}
         onTouchEnd={(e) => e.stopPropagation()}
       />
-      {/* Close Button (big white X) */}
-      <button
-        type="button"
-        className="_menuClose"
-        aria-label="Close menu"
-        onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-      >
-        ×
-      </button>
+
+      {/* Controls bar: centered under global header */}
+      <div className="_controlsBar" onMouseDown={(e) => e.stopPropagation()}>
+        {selectedKey && (
+          <button type="button" className="_ctrlBtn _back" onClick={(e) => { e.stopPropagation(); onBack?.(); }} aria-label="Back">← Back</button>
+        )}
+        <button type="button" className="_ctrlBtn _close" onClick={(e) => { e.stopPropagation(); onClose?.(); }} aria-label="Close">Close ×</button>
+      </div>
 
       <div className="_menuContent">
-        <ul className="_menuList">
+        <ul className={"_menuList" + (selectedKey ? ' _hidden' : '')}>
           {items.map((label) => (
             <li
               key={label}
               className="_menuItem"
-              onClick={() => onClose?.()}
+              onClick={() => onSelect?.(label)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClose?.()}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect?.(label)}
             >
               {label}
             </li>
           ))}
         </ul>
+        {selectedKey && (
+          <div className="_contentWrap">
+            <div className="_contentInner">
+              <h2 className="_contentTitle">{sentences[selectedKey] || selectedKey}</h2>
+              <div className="_contentBody">
+                {selectedKey === 'About' && <About />}
+                {selectedKey === 'Archive' && <Archive />}
+                {selectedKey === 'Shuffle' && <Shuffle />}
+                {selectedKey === 'Upload' && <Upload />}
+                {selectedKey === 'Imprint' && <Imprint />}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
