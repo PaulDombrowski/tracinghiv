@@ -66,6 +66,7 @@ function ItemDetail({ id, onBack, onClose }) {
         .detail__title { margin: 0 0 8px; font-size: clamp(22px, 4.8vw, 56px); line-height: 1; letter-spacing: .06em; text-transform: uppercase; }
         .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
         .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
+        .detail__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
         .detail__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
         .detail__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); }
         .detail__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
@@ -100,7 +101,7 @@ function ItemDetail({ id, onBack, onClose }) {
             <>
               <h2 className="detail__title">{item.title || 'Untitled'}</h2>
               <div className="detail__meta">
-                {item.type && <span className="detail__pill">{item.type}</span>}
+                {item.type && <span className="detail__pillType">{item.type}</span>}
                 {safeArr(item.category).map((c,i) => <span className="detail__pill" key={i}>{c}</span>)}
                 {safeArr(item.tags).length > 0 && <span>Tags: {safeArr(item.tags).join(', ')}</span>}
               </div>

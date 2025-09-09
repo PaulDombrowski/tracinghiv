@@ -139,6 +139,7 @@ export default function Shuffle() {
         .shuffle__title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 4.4vw, 52px); line-height: 1.02; letter-spacing: .06em; margin: 0 0 8px; text-transform: uppercase; }
         .shuffle__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
         .shuffle__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
+        .shuffle__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
 
         .shuffle__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
         .shuffle__media { position: relative; }
@@ -165,7 +166,7 @@ export default function Shuffle() {
         <>
           <h2 className="shuffle__title">{current.title || 'Untitled'}</h2>
           <div className="shuffle__meta">
-            {current.type && <span className="shuffle__pill">{current.type}</span>}
+            {current.type && <span className="shuffle__pillType">{current.type}</span>}
             {safeArr(current.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
             {safeArr(current.tags).length > 0 && <span>Tags: {safeArr(current.tags).join(', ')}</span>}
             <span>{createdAtText}</span>

@@ -138,9 +138,30 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
         ._backBtn:active { transform: translateY(0); }
         ._contentBody { font-size: clamp(14px, 2.4vw, 18px); line-height: 1.6; color: #fff; }
         ._menuList._hidden { display: none; }
-        ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: auto; }
-        /* Solid red backdrop (no transparency) */
-        ._menuOverlay::before { content: ''; position: absolute; inset: 0; background: rgb(255, 0, 0); }
+        ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: auto; isolation: isolate; }
+        /* Luminance-preserving red tint (keeps details of 3D model) */
+        ._menuOverlay::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: #ff0000; /* solid red */
+          mix-blend-mode: color; /* preserve luminance/detail, tint only */
+          opacity: 1;
+          z-index: 0;
+        }
+        /* Subtle vignette + tiny contrast/saturation boost to bring back edges */
+        ._menuOverlay::after {
+          content: '';
+          position: absolute; inset: 0;
+          pointer-events: none;
+          z-index: 0;
+          background: radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 40%, rgba(0,0,0,0.25) 100%);
+          backdrop-filter: saturate(1.1) contrast(1.06);
+          -webkit-backdrop-filter: saturate(1.1) contrast(1.06);
+        }
+        /* Fallback for browsers without blend-mode support */
+        @supports not (mix-blend-mode: color) {
+          ._menuOverlay::before { background: rgba(255,0,0,0.82); }
+        }
         ._menuContent { position: absolute; inset: 0; display: grid; place-items: center; opacity: 1; transform: none; z-index: 9; }
         ._menuList { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(8px, 2.6vh, 22px); }
         ._menuItem { text-align: center; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; color: #fff; font-size: clamp(18px, 6vw, 54px); letter-spacing: clamp(1px, 0.5vw, 8px); line-height: 1; cursor: pointer; user-select: none; position: relative; isolation: isolate; }

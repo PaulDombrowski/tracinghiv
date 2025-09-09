@@ -134,6 +134,10 @@ export default function Upload() {
     <section>
       {/* scoped styles to match red overlay aesthetics */}
       <style>{`
+        .u_intro { margin: 0 auto 18px; width: min(1200px, 92vw); color: #fff; font-family: Arial, Helvetica, sans-serif; }
+        .u_h2 { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 44px); line-height: 1.02; letter-spacing: .04em; margin: 0 0 10px; text-transform: none; }
+        .u_p { font-size: clamp(14px, 2.2vw, 18px); line-height: 1.6; margin: 0 0 10px; }
+        .u_p + .u_p { margin-top: 6px; }
         .u_wrap { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: Arial, Helvetica, sans-serif; }
         .u_title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 3.4vw, 28px); margin: 0 0 12px; letter-spacing: .04em; }
         .u_form { display: grid; gap: 14px; }
@@ -160,9 +164,19 @@ export default function Upload() {
         .u_msg._ok { background: rgba(255,255,255,.92); color: #cc0000; }
         .u_grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         @media (max-width: 760px){ .u_grid2 { grid-template-columns: 1fr; } }
+        @media (max-width: 760px){
+          .u_intro { padding: 0 2px; }
+        }
       `}</style>
 
       <div className="u_wrap">
+        <section className="u_intro">
+          <h2 className="u_h2">HOW CAN ARCHIVES BE MADE MORE PARTICIPATORY?</h2>
+          <p className="u_p">Since institutional archives not only take special care to maintain their collection structures, but also endeavor to preserve materials and maintain their preservation in order to protect the actual sources and keep them alive in a certain way, certain hurdles become clear with regard to the accessibility of archives and the archival records stored in them, some of which are hidden.</p>
+          <p className="u_p">Against this backdrop, the digital space opens up new possibilities for accessibility. In addition to browsing, stumbling across and drifting through the collection of digital testimonies, users are given the opportunity to archive digital traces themselves. This participatory form rethinks accessibility: users are given a creative function in the archiving process.</p>
+          <p className="u_p">In this way, the character of an archive below becomes clear. The users become part of a new collectivization process of memories. If we consider memory as a resource, we could say that collectivization processes aim to use this resource in such a way that it is accessible to the entirety of the group.</p>
+          <p className="u_p">In this sense, collectivizing memory means ensuring that certain memories are not lost, but are available to the community as a whole and remain anchored as part of a collective memory. Just as queer and feminist emancipation movements have done by collecting their own pamphlets, protocols, posters, and personal legacies such as photos and diaries, thus keeping the upper hand on how their stories can be told and passed on as knowledge to others, the online archive HIV/AIDS Legacy also generates itself through the desire of self-responsibility and self-empowerment of memories, of history, of knowledge.</p>
+        </section>
         <h3 className="u_title">Contribute your own</h3>
         <form className={`u_form${success ? ' _success' : ''}`} onSubmit={handleSubmit}>
           <div className="u_row">
