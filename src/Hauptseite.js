@@ -5,15 +5,196 @@ import { motion, AnimatePresence } from 'framer-motion';
 import RightTextComponent from './RightTextComponent';
 import HivModelStage from './HivModelStage';
 import RedMenuOverlay from './RedMenuOverlay';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 // Lokaler Worker (vorher einmal kopieren: cp node_modules/pdfjs-dist/build/pdf.worker.min.js public/)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.js`;
+
+// --- Firebase (guard against re-init) ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDgxBvHfuv0izCJPwNwBd5Ou9brHzGBSqk",
+  authDomain: "hivarchive.firebaseapp.com",
+  projectId: "hivarchive",
+  storageBucket: "hivarchive.appspot.com",
+  messagingSenderId: "783300550035",
+  appId: "1:783300550035:web:87ecf7b4d901068a7c9c66",
+  measurementId: "G-3DESXXFKL1",
+};
+if (!getApps().length) initializeApp(firebaseConfig);
+const db = getFirestore();
+
+
+function ItemDetail({ id, onBack, onClose }) {
+  const [item, setItem] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'uploads', id));
+        if (alive) setItem(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      } catch (e) {
+        console.error('Detail load error:', e);
+        if (alive) setItem(null);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [id]);
+
+  const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+  return (
+    <div className="detail__wrap" role="region" aria-label="Item detail">
+      <style>{`
+        .detail__wrap { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
+        .detail__scroll {
+          position: fixed;
+          left: 0; right: 0;
+          top: calc(var(--hdrH,120px) + 76px);
+          bottom: 0;
+          z-index: 9; /* below RedMenu controls (z:10) */
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+          pointer-events: auto;
+          padding: 0 clamp(10px, 2vw, 20px) 16px;
+        }
+        .detail__inner { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
+        .detail__title { margin: 0 0 8px; font-size: clamp(22px, 4.8vw, 56px); line-height: 1; letter-spacing: .06em; text-transform: uppercase; }
+        .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
+        .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
+        .detail__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
+        .detail__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); }
+        .detail__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
+        .detail__backHint { margin-top: 12px; opacity: .8; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
+        .detail__extras { width: min(1200px, 92vw); margin: 16px auto 0; color: #fff; font-family: Arial, Helvetica, sans-serif; }
+        .detail__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; }
+        .detail__filelist { display: grid; gap: 6px; }
+        .detail__filelist a { color: #fff; text-decoration: underline; word-break: break-all; }
+        .detail__table { width: 100%; border-collapse: collapse; font-size: clamp(12px, 1.4vw, 14px); }
+        .detail__table th, .detail__table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.25); vertical-align: top; }
+        .detail__table th { text-align: left; font-weight: 800; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: .03em; white-space: nowrap; }
+        .detail__links { display: grid; gap: 6px; }
+        .detail__links a { color: #fff; text-decoration: underline; word-break: break-all; }
+        /* subtle grain overlay */
+        .detail__wrap::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 3px 3px; opacity: .35; mix-blend-mode: soft-light; }
+        /* media wrapper for vignette/tint */
+        .detail__media { position: relative; }
+        .detail__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%); mix-blend-mode: soft-light; animation: breathe 3.6s ease-in-out infinite; opacity: .9; border-radius: 12px; }
+        @keyframes breathe { 0%,100% { filter: saturate(1) contrast(1); } 50% { filter: saturate(1.08) contrast(1.05); } }
+        /* zebra table + subtle highlight */
+        .detail__table tr:nth-child(even) { background: rgba(255,255,255,0.04); }
+        .detail__table tr:hover { background: rgba(255,255,255,0.08); }
+        .detail__sectionTitle { border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
+        @media (max-width: 900px) { .detail__grid { grid-template-columns: 1fr; } }
+      `}</style>
+
+      <div className="detail__scroll">
+        <div className="detail__inner">
+          {loading && <div>Loading…</div>}
+          {!loading && !item && <div>Not found.</div>}
+          {!loading && item && (
+            <>
+              <h2 className="detail__title">{item.title || 'Untitled'}</h2>
+              <div className="detail__meta">
+                {item.type && <span className="detail__pill">{item.type}</span>}
+                {safeArr(item.category).map((c,i) => <span className="detail__pill" key={i}>{c}</span>)}
+                {safeArr(item.tags).length > 0 && <span>Tags: {safeArr(item.tags).join(', ')}</span>}
+              </div>
+              <div className="detail__grid">
+                <div className="detail__media">
+                  <img className="detail__img" src={(safeArr(item.fileURLs)[0] || item.thumbnailURL || '')} alt="" />
+                </div>
+                <div className="detail__body">
+                  {item.description || '—'}
+                  <div className="detail__backHint">Use ← Back to return to the list.</div>
+                </div>
+              </div>
+              <div className="detail__extras">
+                {Array.isArray(item.fileURLs) && item.fileURLs.length > 1 && (
+                  <>
+                    <h4 className="detail__sectionTitle">Files</h4>
+                    <div className="detail__filelist">
+                      {item.fileURLs.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <h4 className="detail__sectionTitle">Details</h4>
+                <table className="detail__table">
+                  <tbody>
+                    {item.uploader && (
+                      <tr>
+                        <th>Uploader:</th>
+                        <td>{item.uploader}</td>
+                      </tr>
+                    )}
+                    {item.createdAt && (
+                      <tr>
+                        <th>Created At:</th>
+                        <td>{(() => {
+                          try {
+                            const ts = item.createdAt;
+                            const d = ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+                            return isNaN(d?.getTime?.()) ? '—' : new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+                          } catch { return '—'; }
+                        })()}</td>
+                      </tr>
+                    )}
+                    {item.source && (
+                      <tr>
+                        <th>Source:</th>
+                        <td>
+                          <a href={item.source} target="_blank" rel="noopener noreferrer" style={{ color: '#fff', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                            {item.source}
+                          </a>
+                        </td>
+                      </tr>
+                    )}
+                    {Array.isArray(item.additionalInfo) && item.additionalInfo.length > 0 && (
+                      <tr>
+                        <th>Linked Resources:</th>
+                        <td>
+                          <div className="detail__links">
+                            {item.additionalInfo.map((u, i) => (
+                              <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {(() => {
+                      const known = new Set(['id','title','description','motivation','mood','category','type','tags','uploader','createdAt','source','additionalInfo','thumbnailURL','fileURLs']);
+                      const entries = Object.entries(item || {}).filter(([k,v]) => !known.has(k) && v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
+                      return entries.map(([k,v]) => (
+                        <tr key={k}>
+                          <th>{k}:</th>
+                          <td>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Hauptseite() {
   const [pdf, setPdf] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedArchiveItemId, setSelectedArchiveItemId] = useState(null);
 
 
   // --- MENU state & helpers ---
@@ -641,7 +822,13 @@ function Hauptseite() {
         items={['About', 'Archive', 'Shuffle', 'Upload', 'Imprint']}
         selectedKey={selectedMenu}
         onSelect={(key) => setSelectedMenu(key)}
-        onBack={() => setSelectedMenu(null)}
+        onBack={() => {
+          if (selectedMenu === 'Archive' && selectedArchiveItemId) {
+            setSelectedArchiveItemId(null); // go back to table
+          } else {
+            setSelectedMenu(null); // leave red overlay
+          }
+        }}
         sentences={MENU_SENTENCES}
       />
 
@@ -811,10 +998,18 @@ function Hauptseite() {
 
       {/* ARCHIVE on red menu layer */}
       {menuOpen && selectedMenu === 'Archive' && (
-        <Archive
-          onClose={() => { /* keep red overlay; only dismiss Archive panel */ setSelectedMenu(null); }}
-          onOpenItem={(id) => window.location.assign(`/detail/${id}`)}
-        />
+        !selectedArchiveItemId ? (
+          <Archive
+            onClose={() => { setSelectedMenu(null); }}
+            onOpenItem={(id) => setSelectedArchiveItemId(id)}
+          />
+        ) : (
+          <ItemDetail
+            id={selectedArchiveItemId}
+            onBack={() => setSelectedArchiveItemId(null)}
+            onClose={() => setSelectedMenu(null)}
+          />
+        )
       )}
       {/* Removed old CursorComponent */}
     </div>

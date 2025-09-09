@@ -1,7 +1,6 @@
 // src/RedMenuOverlay.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import About from './About';
-import Archive from './Archive';
 import Shuffle from './Shuffle';
 import Upload from './Upload';
 import Imprint from './Imprint';
@@ -114,9 +113,26 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
       aria-hidden={false}
     >
       <style>{`
-        ._contentWrap { display: grid; place-items: center; min-height: 100%; padding: clamp(10px,2vw,20px); }
-        ._contentInner { width: min(900px, 86vw); color: #fff; text-align: left; }
-        ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 64px); letter-spacing: 0.04em; text-transform: none; margin: 0 0 12px; }
+        /* Fixed scroll region for non-Archive content (About / Shuffle / Upload / Imprint) */
+        ._scrollRegion {
+          position: fixed;
+          left: 0; right: 0;
+          top: calc(var(--hdrH, 120px) + 76px);
+          bottom: 0;
+          overflow: auto;
+          z-index: 9; /* below controls bar (z:10), above red backdrop */
+          padding: 12px clamp(10px, 2vw, 20px) 16px; /* always a little top spacing */
+          pointer-events: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* Center inner content similar to Archive/ItemDetail widths */
+        ._contentWrap { display: grid; place-items: start center; min-height: 0; padding: 0; }
+        ._contentInner { width: min(1200px, 92vw); color: #fff; text-align: left; }
+        ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 64px); letter-spacing: 0.04em; text-transform: none; margin: 0 0 12px; margin-top: 0; }
+        @media (max-width: 760px) {
+          ._scrollRegion { top: calc(var(--hdrH, 120px) + 64px); padding: 10px 12px 14px; }
+          ._contentInner { width: 100%; }
+        }
         ._backBtn { position: absolute; top: clamp(12px, 2vh, 20px); left: clamp(12px, 2vw, 20px); z-index: 10; background: rgba(255,255,255,0.96); color: #cc0000; border: none; border-radius: 999px; padding: 10px 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
         ._backBtn:hover { filter: brightness(0.96); transform: translateY(-1px); }
         ._backBtn:active { transform: translateY(0); }
@@ -200,16 +216,19 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
             </li>
           ))}
         </ul>
-        {selectedKey && (
-          <div className="_contentWrap">
-            <div className="_contentInner">
-              <h2 className="_contentTitle">{sentences[selectedKey] || selectedKey}</h2>
-              <div className="_contentBody">
-                {selectedKey === 'About' && <About />}
-                {selectedKey === 'Archive' && <Archive />}
-                {selectedKey === 'Shuffle' && <Shuffle />}
-                {selectedKey === 'Upload' && <Upload />}
-                {selectedKey === 'Imprint' && <Imprint />}
+        {selectedKey && selectedKey !== 'Archive' && (
+          <div className="_scrollRegion" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="_contentWrap">
+              <div className="_contentInner">
+                {selectedKey !== 'Shuffle' && (
+                  <h2 className="_contentTitle">{sentences[selectedKey] || selectedKey}</h2>
+                )}
+                <div className="_contentBody">
+                  {selectedKey === 'About' && <About />}
+                  {selectedKey === 'Shuffle' && <Shuffle />}
+                  {selectedKey === 'Upload' && <Upload />}
+                  {selectedKey === 'Imprint' && <Imprint />}
+                </div>
               </div>
             </div>
           </div>

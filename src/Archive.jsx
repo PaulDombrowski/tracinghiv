@@ -38,6 +38,7 @@ export default function Archive({ onClose, onOpenItem }) {
   const [hoverTitle, setHoverTitle] = useState("");
   const [hoverImage, setHoverImage] = useState("");
   const [hoverImagePos, setHoverImagePos] = useState({ top: 0, left: 0 });
+  const [hoverLoaded, setHoverLoaded] = useState(false);
   const [queryStr, setQueryStr] = useState("");
   const [debounced, setDebounced] = useState("");
   const firstMatchRef = useRef(null);
@@ -103,15 +104,13 @@ export default function Archive({ onClose, onOpenItem }) {
   }, [debounced, filtered]);
 
   const onRowClick = (id) => {
-    onClose?.();
     if (typeof onOpenItem === 'function') {
       onOpenItem(id);
-    } else {
-      window.location.assign(`/detail/${id}`);
     }
   };
 
   const onEnter = (item, e) => {
+    setHoverLoaded(false);
     setHoverTitle(item.title);
     const jitter = (n) => Math.random() * n - n / 2;
     const top = (e?.clientY ?? 0) + jitter(40);
@@ -137,40 +136,20 @@ export default function Archive({ onClose, onOpenItem }) {
     <>
       {/* Inline styles to live on RED MENU LAYER */}
       <style>{`
-        @font-face {
-          font-family: "ArchiveHover";
-          src: url("/public/Diamons.ttf") format("truetype");
-          font-display: swap;
+        .arch__container {
+          position: fixed;
+          left: 0; right: 0;
+          top: calc(var(--hdrH, 120px) + 76px);
+          bottom: 0;
+          z-index: 9; /* BELOW the RedMenuOverlay controls (z:10), ABOVE red backdrop */
+          width: 100%;
+          background: transparent;
+          padding: 0 clamp(10px, 2vw, 20px) 16px;
+          display: flex;
+          flex-direction: column;
         }
-        .arch__overlay {
-          position: fixed; inset: clamp(10px, 2vw, 18px);
-          z-index: 12; /* above RedMenuOverlay (z:9) */
-          background: rgba(255,255,255,0.08);
-          backdrop-filter: blur(10px) saturate(1.1);
-          -webkit-backdrop-filter: blur(10px) saturate(1.1);
-          border-radius: 18px;
-          box-shadow: 0 18px 48px rgba(0,0,0,.28);
-          display: grid;
-          grid-template-rows: auto 1fr;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.35);
-        }
-        .arch__header {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          align-items: center;
-          gap: 12px;
-          padding: 14px 16px;
-          color: #fff;
-          background: linear-gradient( to bottom, rgba(255,255,255,.08), rgba(255,255,255,.02) );
-        }
-        .arch__title {
-          margin: 0;
-          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
-          text-transform: uppercase;
-          letter-spacing: .06em;
-          font-size: clamp(16px, 3.2vw, 28px);
-        }
+        /* center header contents to same max width as table */
+        .arch__header { width: min(1200px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 8px 0 10px; color: #fff; background: transparent; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
         .arch__search {
           padding: 10px 16px;
           border-radius: 999px;
@@ -181,6 +160,7 @@ export default function Archive({ onClose, onOpenItem }) {
           font-size: 14px;
           min-width: min(46vw, 380px);
           transition: box-shadow .2s ease, background .2s ease, border-color .2s ease;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
         }
         .arch__search::placeholder { color: rgba(255,255,255,.85); }
         .arch__search:focus {
@@ -188,55 +168,94 @@ export default function Archive({ onClose, onOpenItem }) {
           box-shadow: 0 0 0 6px rgba(255,255,255,.18);
           border-color: #fff;
         }
-        .arch__close {
-          position: absolute; top: 10px; right: 12px;
-          appearance: none;
-          border: 2px solid rgba(255,255,255,.9);
-          color: #fff; background: transparent;
-          border-radius: 999px; padding: 6px 10px; font-weight: 700;
-          cursor: pointer;
-        }
-        .arch__body {
-          overflow: auto;
-          padding: 8px 12px 16px;
-        }
-        /* table */
-        .archTable { width: 100%; border-collapse: collapse; font-size: .95rem; color: #fff; }
-        .archTable th, .archTable td { padding: 12px 10px; border-bottom: 2.5px solid rgba(255,255,255,.92); vertical-align: middle; }
-        .archTable th { font-weight: 800; text-transform: uppercase; }
+        /* body takes remaining height and scrolls */
+        .arch__body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 0 0; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        /* table: centered with equal left/right spacing, slightly smaller text */
+        .archTable { width: min(1200px, 100%); margin: 0 auto; border-collapse: collapse; font-size: .82rem; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        .archTable th, .archTable td { padding: 10px 10px; border-bottom: 2.5px solid rgba(255,255,255,.92); vertical-align: middle; }
+        .archTable th { font-weight: 800; text-transform: uppercase; font-size: .84rem; }
         .col-num { width: 56px; text-align: center; }
-        .pill { display: inline-block; padding: 6px 10px; margin: 2px 6px 2px 0; border-radius: 999px; border: 2px solid rgba(255,255,255,.92); background: transparent; font-size: .78rem; line-height: 1; color: #fff; }
+        .pill { display: inline-block; padding: 5px 9px; margin: 2px 6px 2px 0; border-radius: 999px; border: 2px solid rgba(255,255,255,.92); background: transparent; font-size: .7rem; line-height: 1; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
         .r { transition: background-color .22s ease, color .22s ease, transform .18s ease, opacity .18s ease; cursor: pointer; }
         .r:hover { background: rgba(255,255,255,.12); }
         .loadingRow, .emptyRow { text-align: center; padding: 22px 12px; color: #fff; }
-        /* hover title & image */
-        .hoverTitle {
-          font-family: "ArchiveHover", Arial, sans-serif;
-          position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%);
-          font-size: clamp(3rem, 10vw, 10rem);
-          color: #fff; opacity: 0; pointer-events: none; z-index: 13;
-          letter-spacing: 0.02em; transition: opacity .25s ease, transform .25s ease; white-space: pre-wrap;
-          text-shadow: 0 2px 0 rgba(0,0,0,.12), 0 0 22px rgba(255,255,255,.28);
+        /* Hover image wrapper sits above table content, below RedMenu controls */
+        .hoverImageWrap {
+          position: fixed; width: clamp(160px, 22vw, 360px); height: clamp(160px, 22vw, 360px);
+          z-index: 9; /* above table content, below RedMenu controls (z:10) */
+          pointer-events: none; border-radius: 12px; overflow: hidden;
+          box-shadow: 0 12px 34px rgba(0,0,0,.35);
+          border: 2px solid rgba(255,255,255,.95);
+          filter: saturate(1.12) contrast(1.03);
         }
-        .hoverTitle.show { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
-        .hoverTitle span { display: inline-block; transition: transform .5s ease; will-change: transform; }
-        .hoverImage {
-          position: fixed; width: clamp(160px, 22vw, 320px); height: clamp(160px, 22vw, 320px);
-          object-fit: cover; border-radius: 12px; box-shadow: 0 8px 26px rgba(0,0,0,.35);
-          z-index: 13; pointer-events: none;
-          border: 2px solid rgba(255,255,255,.9);
+        .hoverImageWrap::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: #9370DB; /* flieder */
+          mix-blend-mode: color; /* push hue strongly towards flieder */
+          opacity: 0.55;
+          pointer-events: none;
         }
+        .hoverImageWrap::after { /* flieder tint overlay */
+          content: '';
+          position: absolute; inset: 0;
+          background: rgba(147, 112, 219, 0.75); /* flieder: stronger overlay */
+          mix-blend-mode: multiply;
+          pointer-events: none;
+        }
+        .hoverCaption {
+          position: absolute; left: 10px; right: 10px; top: 10px;
+          padding: 0;
+          color: #ffffff;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-weight: 900;
+          font-size: clamp(18px, 2.8vw, 34px);
+          line-height: 1.1;
+          text-align: left;
+          letter-spacing: .04em;
+          opacity: 0; transform: translateY(-10px) scale(.96);
+          transition: opacity .24s ease, transform .24s ease;
+          text-shadow: 0 2px 0 rgba(0,0,0,.18), 0 0 18px rgba(0,0,0,.26);
+          z-index: 1;
+          white-space: normal; word-break: break-word; overflow: visible;
+        }
+        .hoverCaption.show {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          animation: capPop 320ms cubic-bezier(.2,.8,.2,1) both,
+                     capWarp 420ms cubic-bezier(.19,.84,.22,1) 80ms 1,
+                     capShake 240ms steps(14) 140ms 1;
+        }
+        @keyframes capPop {
+          0%   { opacity: 0; transform: translateY(-10px) scale(.96) skewX(-6deg); filter: blur(2px); }
+          60%  { opacity: 1; transform: translateY(0) scale(1.02) skewX(2deg); filter: blur(0); }
+          100% { transform: translateY(0) scale(1) skewX(0); }
+        }
+        @keyframes capWarp {
+          0%   { letter-spacing: .02em; transform: translateY(0) scale(1) skewX(0deg) rotateX(0deg); filter: none; }
+          35%  { letter-spacing: .14em; transform: translateY(-2px) scale(1.03) skewX(6deg) rotateX(6deg); filter: blur(.4px); }
+          60%  { letter-spacing: .08em; transform: translateY(0) scale(1.01) skewX(-3deg) rotateX(0deg); filter: blur(.2px); }
+          100% { letter-spacing: .04em; transform: translateY(0) scale(1) skewX(0deg) rotateX(0deg); filter: none; }
+        }
+        @keyframes capShake {
+          0% { transform: translateY(0) translateX(0); }
+          20% { transform: translateY(0) translateX(-1.2px); }
+          40% { transform: translateY(0) translateX(1.2px); }
+          60% { transform: translateY(0) translateX(-.8px); }
+          80% { transform: translateY(0) translateX(.8px); }
+          100% { transform: translateY(0) translateX(0); }
+        }
+        .hoverImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         @media (max-width: 760px) {
-          .arch__overlay { inset: 0; border-radius: 0; }
-          .arch__header { grid-template-columns: 1fr; gap: 8px; }
+          .arch__container { top: calc(var(--hdrH, 120px) + 64px); padding: 0 12px 12px; }
+          .arch__header { width: 100%; }
           .arch__search { min-width: 0; width: 100%; }
+          .archTable { width: 100%; }
         }
       `}</style>
 
-      <div className="arch__overlay" role="dialog" aria-modal="true" aria-label="Archive">
-        <button className="arch__close" onClick={() => onClose?.()}>Close</button>
+      <div className="arch__container" role="region" aria-label="Archive">
         <div className="arch__header">
-          <h2 className="arch__title">All Current Records in the Database</h2>
           <input
             type="text"
             className="arch__search"
@@ -247,31 +266,27 @@ export default function Archive({ onClose, onOpenItem }) {
           />
         </div>
 
-        {/* Hover Title */}
-        <div className={`hoverTitle ${hoverTitle ? "show" : ""}`} style={{ fontSize: titleSize }} aria-hidden>
-          {hoverTitle.split(" ").map((w, i) => (
-            <span
-              key={`${w}-${i}`}
-              style={{
-                transform: `translate(${Math.max(-5, Math.min(5, Math.random() * 20 - 10))}%, ${Math.max(-5, Math.min(5, Math.random() * 20 - 10))}%) rotateY(${Math.random() > 0.5 ? 30 : -30}deg)`,
-              }}
-            >
-              {w}
-            </span>
-          ))}
-        </div>
 
         {/* Floating hover image */}
         {hoverImage && (
-          <motion.img
-            src={hoverImage}
-            alt=""
-            className="hoverImage"
+          <motion.div
+            className="hoverImageWrap"
             style={{ top: hoverImagePos.top, left: hoverImagePos.left }}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1.08 }}
+            initial={{ opacity: 0, scale: 0.985 }}
+            animate={{ opacity: 1, scale: 1.06 }}
             transition={{ duration: 0.22 }}
-          />
+          >
+            <img
+              src={hoverImage}
+              alt=""
+              className="hoverImage"
+              onLoad={() => {
+                setHoverLoaded(false);
+                setTimeout(() => setHoverLoaded(true), 90); // tiny delay for fancy reveal
+              }}
+            />
+            <div className={"hoverCaption" + (hoverLoaded ? " show" : "")}>{hoverTitle}</div>
+          </motion.div>
         )}
 
         <div className="arch__body">
