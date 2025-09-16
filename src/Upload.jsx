@@ -135,11 +135,11 @@ export default function Upload() {
       {/* scoped styles to match red overlay aesthetics */}
       <style>{`
         .u_intro { margin: 0 auto 18px; width: min(1200px, 92vw); color: #fff; font-family: Arial, Helvetica, sans-serif; }
-        .u_h2 { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 44px); line-height: 1.02; letter-spacing: .04em; margin: 0 0 10px; text-transform: none; }
+        .u_h2 { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 44px); line-height: 1.02; letter-spacing: .04em; margin: 0 0 10px; text-transform: none; word-spacing: .16em; }
         .u_p { font-size: clamp(14px, 2.2vw, 18px); line-height: 1.6; margin: 0 0 10px; }
         .u_p + .u_p { margin-top: 6px; }
         .u_wrap { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: Arial, Helvetica, sans-serif; }
-        .u_title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 3.4vw, 28px); margin: 0 0 12px; letter-spacing: .04em; }
+        .u_title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 3.4vw, 28px); margin: 0 0 12px; letter-spacing: .04em; word-spacing: .16em; }
         .u_form { display: grid; gap: 14px; }
         .u_row { display: grid; gap: 8px; }
         .u_row label { font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: .06em; }

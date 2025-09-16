@@ -11,7 +11,7 @@ import Imprint from './Imprint';
  * - Klick auf Items schließt das Menü (Navigation kann oben drauf gesetzt werden).
  * - Items animieren „glitchy“ wie der Titel.
  */
-export default function RedMenuOverlay({ open, onClose, items = [], selectedKey, onSelect, onBack, sentences = {} }) {
+export default function RedMenuOverlay({ open, onClose, items = [], selectedKey, onSelect, onBack, sentences = {}, onOpenArchiveItem }) {
   const [moving, setMoving] = useState(false);
   const moveTO = useRef(null);
 
@@ -128,7 +128,8 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
         /* Center inner content similar to Archive/ItemDetail widths */
         ._contentWrap { display: grid; place-items: start center; min-height: 0; padding: 0; }
         ._contentInner { width: min(1200px, 92vw); color: #fff; text-align: left; }
-        ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 64px); letter-spacing: 0.04em; text-transform: none; margin: 0 0 12px; margin-top: 0; }
+        ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 7vw, 64px); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 12px; margin-top: 0; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
+        @media (max-width: 560px) { ._contentTitle { white-space: normal; text-wrap: balance; line-height: 1.08; } }
         @media (max-width: 760px) {
           ._scrollRegion { top: calc(var(--hdrH, 120px) + 64px); padding: 10px 12px 14px; }
           ._contentInner { width: 100%; }
@@ -241,12 +242,12 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
           <div className="_scrollRegion" onMouseDown={(e) => e.stopPropagation()}>
             <div className="_contentWrap">
               <div className="_contentInner">
-                {selectedKey !== 'Shuffle' && (
+                {selectedKey !== 'Shuffle' && selectedKey !== 'About' && (
                   <h2 className="_contentTitle">{sentences[selectedKey] || selectedKey}</h2>
                 )}
                 <div className="_contentBody">
                   {selectedKey === 'About' && <About />}
-                  {selectedKey === 'Shuffle' && <Shuffle />}
+                  {selectedKey === 'Shuffle' && <Shuffle onOpenItem={onOpenArchiveItem} />}
                   {selectedKey === 'Upload' && <Upload />}
                   {selectedKey === 'Imprint' && <Imprint />}
                 </div>

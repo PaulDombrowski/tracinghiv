@@ -6,10 +6,12 @@ import RightTextComponent from './RightTextComponent';
 import HivModelStage from './HivModelStage';
 import RedMenuOverlay from './RedMenuOverlay';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, getDocs, where, limit, query as fsQuery } from 'firebase/firestore';
 
 // Lokaler Worker (vorher einmal kopieren: cp node_modules/pdfjs-dist/build/pdf.worker.min.js public/)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.js`;
+
+
 
 // --- Firebase (guard against re-init) ---
 const firebaseConfig = {
@@ -25,9 +27,11 @@ if (!getApps().length) initializeApp(firebaseConfig);
 const db = getFirestore();
 
 
-function ItemDetail({ id, onBack, onClose }) {
+function ItemDetail({ id, onBack, onClose, onOpen }) {
   const [item, setItem] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [related, setRelated] = React.useState([]);
+  const [relLoading, setRelLoading] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -47,6 +51,43 @@ function ItemDetail({ id, onBack, onClose }) {
 
   const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
+  // Load related items based on shared categories
+  React.useEffect(() => {
+    const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+    let alive = true;
+    (async () => {
+      if (!item) return;
+      const cats = safeArr(item.category).filter(Boolean);
+      if (!cats.length) { setRelated([]); return; }
+      try {
+        setRelLoading(true);
+        const coll = collection(db, 'uploads');
+        // Query by any shared category; then filter/sort client-side
+        const q = fsQuery(coll, where('category', 'array-contains-any', cats), limit(10));
+        const snap = await getDocs(q);
+        const list = [];
+        snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+        // Exclude self, score by number of shared categories
+        const scored = list
+          .filter((d) => d.id !== item.id)
+          .map((d) => {
+            const dCats = safeArr(d.category).filter(Boolean);
+            const shared = dCats.filter((c) => cats.includes(c)).length;
+            return { ...d, __score: shared };
+          })
+          .sort((a, b) => b.__score - a.__score);
+        const top3 = scored.slice(0, 3);
+        if (alive) setRelated(top3);
+      } catch (e) {
+        console.error('Related load error:', e);
+        if (alive) setRelated([]);
+      } finally {
+        if (alive) setRelLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [item]);
+
   return (
     <div className="detail__wrap" role="region" aria-label="Item detail">
       <style>{`
@@ -63,7 +104,10 @@ function ItemDetail({ id, onBack, onClose }) {
           padding: 0 clamp(10px, 2vw, 20px) 16px;
         }
         .detail__inner { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
-        .detail__title { margin: 0 0 8px; font-size: clamp(22px, 4.8vw, 56px); line-height: 1; letter-spacing: .06em; text-transform: uppercase; }
+        .detail__title { margin: 0 0 8px; font-size: clamp(20px, 6.4vw, 56px); line-height: 1.02; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
+        @media (max-width: 560px) { .detail__title { white-space: normal; text-wrap: balance; line-height: 1.08; } }
+        ._titleLine { word-spacing: .18em; }
+        @media (max-width: 560px) { ._titleLine { } }
         .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
         .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
         .detail__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
@@ -91,6 +135,16 @@ function ItemDetail({ id, onBack, onClose }) {
         .detail__table tr:hover { background: rgba(255,255,255,0.08); }
         .detail__sectionTitle { border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
         @media (max-width: 900px) { .detail__grid { grid-template-columns: 1fr; } }
+        .detail__relatedWrap { width: min(1200px, 92vw); margin: 40px auto 0; }
+        .detail__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
+        .detail__relatedList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .detail__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+        .detail__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
+        .detail__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+        .detail__cardBody { padding: 8px 10px; color: #fff; }
+        .detail__cardTitle { margin: 0 0 6px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(12px, 1.6vw, 16px); line-height: 1.2; text-transform: uppercase; letter-spacing: .04em; }
+        .detail__cardType { display:inline-block; padding:4px 8px; border-radius:999px; background:#fff; color:#cc0000; font-size:.72rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        @media (max-width: 900px) { .detail__relatedList { grid-template-columns: 1fr; } }
       `}</style>
 
       <div className="detail__scroll">
@@ -181,6 +235,26 @@ function ItemDetail({ id, onBack, onClose }) {
                     })()}
                   </tbody>
                 </table>
+              </div>
+              {/* Related items */}
+              <div className="detail__relatedWrap">
+                <h4 className="detail__relatedTitle">Similar items</h4>
+                {relLoading && <div>Loading…</div>}
+                {!relLoading && related.length === 0 && <div style={{opacity:.8}}>No similar items found.</div>}
+                {!relLoading && related.length > 0 && (
+                  <div className="detail__relatedList">
+                    {related.map((r) => (
+                      <div key={r.id} className="detail__card" onClick={() => onOpen?.(r.id)} role="button" tabIndex={0}
+                           onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); onOpen?.(r.id);} }}>
+                        <img className="detail__thumb" src={(Array.isArray(r.fileURLs) && r.fileURLs[0]) || r.thumbnailURL || ''} alt="" />
+                        <div className="detail__cardBody">
+                          <div className="detail__cardTitle">{r.title || 'Untitled'}</div>
+                          {r.type && <span className="detail__cardType">{r.type}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -695,8 +769,9 @@ function Hauptseite() {
           color: #ff0000; /* SOLID RED, ALWAYS VISIBLE */
           text-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 0 14px rgba(255,0,0,0.18); /* subtle depth */
           user-select: none;
-          white-space: pre;
+          white-space: nowrap;
         }
+        @media (max-width: 560px) { ._titleLine { white-space: normal; text-wrap: balance; line-height: 1.06; } }
         ._titleLetter {
           display: inline-block;
           transform: translateZ(0);
@@ -831,6 +906,7 @@ function Hauptseite() {
           }
         }}
         sentences={MENU_SENTENCES}
+        onOpenArchiveItem={(id) => { setSelectedMenu('Archive'); setSelectedArchiveItemId(id); }}
       />
 
       {/* Custom Cursor Dot (white when menu is open) */}
@@ -1009,6 +1085,7 @@ function Hauptseite() {
             id={selectedArchiveItemId}
             onBack={() => setSelectedArchiveItemId(null)}
             onClose={() => setSelectedMenu(null)}
+            onOpen={(id) => setSelectedArchiveItemId(id)}
           />
         )
       )}

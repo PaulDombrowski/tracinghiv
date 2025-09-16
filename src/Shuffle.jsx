@@ -33,12 +33,27 @@ const db = getFirestore();
 
 const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
-export default function Shuffle() {
+export default function Shuffle({ onOpenItem }) {
   const [items, setItems] = useState([]);
   const [current, setCurrent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [shuffling, setShuffling] = useState(false);
   const imgRef = useRef(null);
+  const related = useMemo(() => {
+    if (!current) return [];
+    const cats = safeArr(current.category).filter(Boolean);
+    if (!cats.length) return [];
+    const scored = items
+      .filter((it) => it.id !== current.id)
+      .map((it) => {
+        const c = safeArr(it.category).filter(Boolean);
+        const shared = c.filter((x) => cats.includes(x)).length;
+        return { ...it, __score: shared };
+      })
+      .filter((it) => it.__score > 0)
+      .sort((a, b) => b.__score - a.__score);
+    return scored.slice(0, 3);
+  }, [items, current]);
 
   useEffect(() => {
     (async () => {
@@ -136,7 +151,8 @@ export default function Shuffle() {
         .shuffle__btn:hover { transform: translateY(-1px); filter: brightness(.98); }
         .shuffle__btn:active { transform: translateY(0) scale(.98); }
 
-        .shuffle__title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 4.4vw, 52px); line-height: 1.02; letter-spacing: .06em; margin: 0 0 8px; text-transform: uppercase; }
+        .shuffle__title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(20px, 6.2vw, 52px); line-height: 1.02; letter-spacing: .06em; margin: 0 0 8px; text-transform: uppercase; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
+        @media (max-width: 560px) { .shuffle__title { white-space: normal; text-wrap: balance; line-height: 1.08; } }
         .shuffle__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
         .shuffle__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
         .shuffle__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
@@ -151,6 +167,16 @@ export default function Shuffle() {
         .shuffle__links a { color: #fff; text-decoration: underline; word-break: break-all; }
         .shuffle__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
         @media (max-width: 900px) { .shuffle__grid { grid-template-columns: 1fr; } }
+        .shuffle__relatedWrap { margin-top: 36px; }
+        .shuffle__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
+        .shuffle__relatedList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .shuffle__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+        .shuffle__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
+        .shuffle__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+        .shuffle__cardBody { padding: 8px 10px; color: #fff; }
+        .shuffle__cardTitle { margin: 0 0 6px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(12px, 1.6vw, 16px); line-height: 1.2; text-transform: uppercase; letter-spacing: .04em; }
+        .shuffle__cardType { display:inline-block; padding:4px 8px; border-radius:999px; background:#fff; color:#cc0000; font-size:.72rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        @media (max-width: 900px) { .shuffle__relatedList { grid-template-columns: 1fr; } }
       `}</style>
 
       <div className="shuffle__topBar">
@@ -213,6 +239,25 @@ export default function Shuffle() {
           </div>
         </>
       )}
+      <div className="shuffle__relatedWrap">
+        <h4 className="shuffle__relatedTitle">Related</h4>
+        {related.length === 0 ? (
+          <div style={{opacity:.8}}>No similar items yet.</div>
+        ) : (
+          <div className="shuffle__relatedList">
+            {related.map((r) => (
+              <div key={r.id} className="shuffle__card" onClick={() => (onOpenItem ? onOpenItem(r.id) : setCurrent(r))} role="button" tabIndex={0}
+                   onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); (onOpenItem ? onOpenItem(r.id) : setCurrent(r)); } }}>
+                <img className="shuffle__thumb" src={(safeArr(r.fileURLs)[0] || r.thumbnailURL || '')} alt="" />
+                <div className="shuffle__cardBody">
+                  <div className="shuffle__cardTitle">{r.title || 'Untitled'}</div>
+                  {r.type && <span className="shuffle__cardType">{r.type}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

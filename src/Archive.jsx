@@ -136,6 +136,25 @@ export default function Archive({ onClose, onOpenItem }) {
     <>
       {/* Inline styles to live on RED MENU LAYER */}
       <style>{`
+        .arch__title {
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-size: clamp(18px, 7vw, 64px);
+          letter-spacing: .06em;
+          text-transform: uppercase;
+          margin: 0 0 12px;
+          margin-top: 0;
+          white-space: nowrap;
+          overflow-wrap: normal;
+          word-break: keep-all;
+          word-spacing: .16em;
+        }
+        @media (max-width: 560px) {
+          .arch__title {
+            white-space: normal;
+            text-wrap: balance;
+            line-height: 1.08;
+          }
+        }
         .arch__container {
           position: fixed;
           left: 0; right: 0;
