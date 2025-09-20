@@ -124,10 +124,11 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
           padding: 12px clamp(10px, 2vw, 20px) 16px; /* always a little top spacing */
           pointer-events: auto;
           -webkit-overflow-scrolling: touch;
+          animation: menuSlideDown .46s cubic-bezier(.2,.8,.2,1) forwards;
         }
         /* Center inner content similar to Archive/ItemDetail widths */
         ._contentWrap { display: grid; place-items: start center; min-height: 0; padding: 0; }
-        ._contentInner { width: min(1200px, 92vw); color: #fff; text-align: left; }
+        ._contentInner { width: min(1200px, 92vw); color: #fff; text-align: left; animation: menuFadeUp .4s cubic-bezier(.2,.8,.2,1) forwards; }
         ._contentTitle { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 7vw, 64px); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 12px; margin-top: 0; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
         @media (max-width: 560px) { ._contentTitle { white-space: normal; text-wrap: balance; line-height: 1.08; } }
         @media (max-width: 760px) {
@@ -163,8 +164,13 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
         @supports not (mix-blend-mode: color) {
           ._menuOverlay::before { background: rgba(255,0,0,0.82); }
         }
+        /* Firefox tweak: lighten tint slightly for better passthrough */
+        @supports (-moz-appearance: none) {
+          ._menuOverlay::before { opacity: 0.68; background: rgba(255,30,30,0.72); }
+          ._menuOverlay::after { background: radial-gradient(120% 120% at 50% 50%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 36%, rgba(0,0,0,0.2) 100%); }
+        }
         ._menuContent { position: absolute; inset: 0; display: grid; place-items: center; opacity: 1; transform: none; z-index: 9; }
-        ._menuList { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(8px, 2.6vh, 22px); }
+        ._menuList { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(8px, 2.6vh, 22px); animation: menuFadeUp .4s cubic-bezier(.2,.8,.2,1) forwards; }
         ._menuItem { text-align: center; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; color: #fff; font-size: clamp(18px, 6vw, 54px); letter-spacing: clamp(1px, 0.5vw, 8px); line-height: 1; cursor: pointer; user-select: none; position: relative; isolation: isolate; }
         ._menuItem::after {
           content: '';
@@ -192,6 +198,22 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
           z-index: 10;
           pointer-events: auto;
         }
+        @keyframes menuFadeUp {
+          0% { opacity: 0; transform: translateY(16px) scale(.98); }
+          60% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes menuSlideDown {
+          0% { opacity: 0; transform: translateY(-18px) scale(.97); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes fadeContent {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+
         ._ctrlBtn {
           background: rgba(255,255,255,0.96);
           color: #cc0000;
@@ -224,7 +246,7 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
       </div>
 
       <div className="_menuContent">
-        <ul className={"_menuList" + (selectedKey ? ' _hidden' : '')}>
+        <ul key="menuList" className={"_menuList" + (selectedKey ? ' _hidden' : '')}>
           {items.map((label) => (
             <li
               key={label}
@@ -239,7 +261,7 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
           ))}
         </ul>
         {selectedKey && selectedKey !== 'Archive' && (
-          <div className="_scrollRegion" onMouseDown={(e) => e.stopPropagation()}>
+          <div key={selectedKey} className="_scrollRegion" onMouseDown={(e) => e.stopPropagation()}>
             <div className="_contentWrap">
               <div className="_contentInner">
                 {selectedKey !== 'Shuffle' && selectedKey !== 'About' && (

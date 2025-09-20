@@ -277,6 +277,8 @@ export default function Archive({ onClose, onOpenItem }) {
   const [hoverLoaded, setHoverLoaded] = useState(false);
   const [queryStr, setQueryStr] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [isCompact, setIsCompact] = useState(false);
+  const [allowHoverPreview, setAllowHoverPreview] = useState(true);
   const firstMatchRef = useRef(null);
 
   // Load data (ordered if createdAt exists)
@@ -323,6 +325,26 @@ export default function Archive({ onClose, onOpenItem }) {
     return () => clearTimeout(t);
   }, [queryStr]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const compactMq = window.matchMedia('(max-width: 850px)');
+    const hoverMq = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+    const updateCompact = () => setIsCompact(compactMq.matches);
+    const updateHover = () => setAllowHoverPreview(hoverMq.matches);
+
+    updateCompact();
+    updateHover();
+
+    compactMq.addEventListener ? compactMq.addEventListener('change', updateCompact) : compactMq.addListener(updateCompact);
+    hoverMq.addEventListener ? hoverMq.addEventListener('change', updateHover) : hoverMq.addListener(updateHover);
+
+    return () => {
+      compactMq.removeEventListener ? compactMq.removeEventListener('change', updateCompact) : compactMq.removeListener(updateCompact);
+      hoverMq.removeEventListener ? hoverMq.removeEventListener('change', updateHover) : hoverMq.removeListener(updateHover);
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     if (!debounced) return rows;
     return rows.filter((r) => {
@@ -339,6 +361,13 @@ export default function Archive({ onClose, onOpenItem }) {
     firstMatchRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [debounced, filtered]);
 
+  useEffect(() => {
+    if (!allowHoverPreview) {
+      setHoverImage("");
+      setHoverTitle("");
+    }
+  }, [allowHoverPreview]);
+
   const onRowClick = (id) => {
     if (typeof onOpenItem === 'function') {
       onOpenItem(id);
@@ -346,17 +375,24 @@ export default function Archive({ onClose, onOpenItem }) {
   };
 
   const onEnter = (item, e) => {
+    if (!allowHoverPreview) return;
     setHoverLoaded(false);
     setHoverTitle(item.title);
     const jitter = (n) => Math.random() * n - n / 2;
-    const top = (e?.clientY ?? 0) + jitter(40);
-    const left = (e?.clientX ?? 0) + jitter(40);
+    const eventX = e?.clientX ?? window.innerWidth / 2;
+    const eventY = e?.clientY ?? window.innerHeight / 2;
+    const approxSize = Math.min(Math.max(window.innerWidth * 0.22, 160), 360);
+    const range = (value, min, max) => Math.min(Math.max(value, min), max);
+    const baseTop = eventY + jitter(40) - approxSize * 0.5;
+    const top = range(baseTop, 16, Math.max(16, window.innerHeight - approxSize - 16));
+    const left = range(eventX + jitter(40) - approxSize * 0.5, 16, window.innerWidth - approxSize - 16);
     setHoverImagePos({ top, left });
     const img = item.fileURLs[0] || item.thumbnailURL || "";
     setHoverImage(img);
   };
 
   const onLeave = () => {
+    if (!allowHoverPreview) return;
     setHoverTitle("");
     setHoverImage("");
   };
@@ -372,6 +408,7 @@ export default function Archive({ onClose, onOpenItem }) {
     <>
       {/* Inline styles to live on RED MENU LAYER */}
       <style>{`
+        :root { --archGutter: clamp(32px, 8vw, 96px); }
         .arch__title {
           font-family: 'Arial Black', Arial, Helvetica, sans-serif;
           font-size: clamp(18px, 7vw, 64px);
@@ -394,17 +431,20 @@ export default function Archive({ onClose, onOpenItem }) {
         .arch__container {
           position: fixed;
           left: 0; right: 0;
-          top: calc(var(--hdrH, 120px) + 76px);
+          top: calc(var(--hdrH, 120px) + 72px);
           bottom: 0;
           z-index: 9; /* BELOW the RedMenuOverlay controls (z:10), ABOVE red backdrop */
-          width: 100%;
+          width: min(1180px, calc(100% - 2 * var(--archGutter)));
+          margin: 0 auto;
           background: transparent;
-          padding: 0 clamp(10px, 2vw, 20px) 16px;
+          padding: 0 clamp(18px, 4vw, 38px) clamp(18px, 4vw, 32px);
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
+          animation: archSlide .48s cubic-bezier(.2,.8,.2,1) forwards;
         }
         /* center header contents to same max width as table */
-        .arch__header { width: min(1200px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 8px 0 10px; color: #fff; background: transparent; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        .arch__header { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; gap: 12px; padding: 8px 0 10px; color: #fff; background: transparent; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
         .arch__search {
           padding: 10px 16px;
           border-radius: 999px;
@@ -413,7 +453,7 @@ export default function Archive({ onClose, onOpenItem }) {
           color: #fff;
           outline: none;
           font-size: 14px;
-          min-width: min(46vw, 380px);
+          width: min(540px, 100%);
           transition: box-shadow .2s ease, background .2s ease, border-color .2s ease;
           font-family: 'Arial Black', Arial, Helvetica, sans-serif;
         }
@@ -424,10 +464,10 @@ export default function Archive({ onClose, onOpenItem }) {
           border-color: #fff;
         }
         /* body takes remaining height and scrolls */
-        .arch__body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 0 0; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        .arch__body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 6px 0 0; font-family: 'Arial Black', Arial, Helvetica, sans-serif; animation: archFade .46s ease forwards; }
         /* table: centered with equal left/right spacing, slightly smaller text */
-        .archTable { width: min(1200px, 100%); margin: 0 auto; border-collapse: collapse; font-size: .82rem; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
-        .archTable th, .archTable td { padding: 10px 10px; border-bottom: 2.5px solid rgba(255,255,255,.92); vertical-align: middle; }
+        .archTable { width: 100%; margin: 0 auto; border-collapse: collapse; font-size: .82rem; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; animation: archFade .46s ease forwards; }
+        .archTable th, .archTable td { padding: 10px clamp(10px, 2.4vw, 18px); border-bottom: 2.5px solid rgba(255,255,255,.92); vertical-align: middle; }
         .archTable th { font-weight: 800; text-transform: uppercase; font-size: .84rem; }
         .col-num { width: 56px; text-align: center; }
         .pill { display: inline-block; padding: 5px 9px; margin: 2px 6px 2px 0; border-radius: 999px; border: 2px solid rgba(255,255,255,.92); background: transparent; font-size: .7rem; line-height: 1; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
@@ -481,6 +521,15 @@ export default function Archive({ onClose, onOpenItem }) {
                      capWarp 420ms cubic-bezier(.19,.84,.22,1) 80ms 1,
                      capShake 240ms steps(14) 140ms 1;
         }
+        @keyframes archSlide {
+          0% { opacity: 0; transform: translateY(-22px) scale(.96); }
+          60% { opacity: 1; transform: translateY(4px) scale(1.01); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes archFade {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
         @keyframes capPop {
           0%   { opacity: 0; transform: translateY(-10px) scale(.96) skewX(-6deg); filter: blur(2px); }
           60%  { opacity: 1; transform: translateY(0) scale(1.02) skewX(2deg); filter: blur(0); }
@@ -501,11 +550,42 @@ export default function Archive({ onClose, onOpenItem }) {
           100% { transform: translateY(0) translateX(0); }
         }
         .hoverImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        @media (max-width: 760px) {
-          .arch__container { top: calc(var(--hdrH, 120px) + 64px); padding: 0 12px 12px; }
-          .arch__header { width: 100%; }
-          .arch__search { min-width: 0; width: 100%; }
-          .archTable { width: 100%; }
+        .archCards { display: none; }
+        @media (max-width: 850px) {
+          .arch__container { top: calc(var(--hdrH, 120px) + 56px); width: calc(100% - clamp(28px, 10vw, 68px)); padding: 0 clamp(14px, 5vw, 24px) clamp(18px, 5vw, 28px); box-sizing: border-box; }
+          .arch__header { gap: 8px; justify-items: stretch; }
+          .arch__search { width: 100%; max-width: none; }
+          .arch__body { padding-bottom: 24px; }
+          .archTable { display: none; }
+          .archCards { display: grid; gap: 16px; width: 100%; animation: archFade .48s ease forwards; }
+          .archCard {
+            border: 2px solid rgba(255,255,255,.85);
+            border-radius: 16px;
+            background: rgba(15,0,0,0.24);
+            backdrop-filter: blur(8px) saturate(1.08);
+            -webkit-backdrop-filter: blur(8px) saturate(1.08);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.24);
+          }
+          .archCard__button {
+            width: 100%;
+            padding: 16px 16px 14px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            text-align: left;
+            display: grid;
+            gap: 10px;
+            cursor: pointer;
+          }
+          .archCard__header { display: flex; align-items: baseline; gap: 12px; }
+          .archCard__num { font-size: 0.9rem; opacity: .9; letter-spacing: .14em; text-transform: uppercase; }
+          .archCard__title { margin: 0; font-size: 1.12rem; line-height: 1.2; text-transform: uppercase; letter-spacing: .06em; }
+          .archCard__meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+          .archCard__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+          .archCard__chip { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; border: 2px solid rgba(255,255,255,.85); font-size: .72rem; letter-spacing: .05em; }
+          .archCard__footer { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .74rem; letter-spacing: .04em; opacity: .84; }
+          .archCard__button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; border-radius: 16px; }
+          .archCard__button:active { transform: scale(.99); }
         }
       `}</style>
 
@@ -523,7 +603,7 @@ export default function Archive({ onClose, onOpenItem }) {
 
 
         {/* Floating hover image */}
-        {hoverImage && (
+        {allowHoverPreview && hoverImage && (
           <motion.div
             className="hoverImageWrap"
             style={{ top: hoverImagePos.top, left: hoverImagePos.left }}
@@ -545,54 +625,100 @@ export default function Archive({ onClose, onOpenItem }) {
         )}
 
         <div className="arch__body">
-          <table className="archTable">
-            <thead>
-              <tr>
-                <th className="col-num">#</th>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Category</th>
-                <th>Tags</th>
-                <th>Created&nbsp;At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr><td colSpan={6} className="loadingRow">Loading…</td></tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={6} className="emptyRow">No records found.</td></tr>
-              )}
-              {!loading &&
-                filtered.map((item, idx) => {
-                  const isFirstMatch = debounced && idx === 0;
-                  return (
-                    <motion.tr
-                      key={item.id}
-                      ref={isFirstMatch ? firstMatchRef : null}
-                      className="r"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.18, delay: idx * 0.02 }}
+          {!isCompact ? (
+            <table className="archTable">
+              <thead>
+                <tr>
+                  <th className="col-num">#</th>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th>Tags</th>
+                  <th>Created&nbsp;At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr><td colSpan={6} className="loadingRow">Loading…</td></tr>
+                )}
+                {!loading && filtered.length === 0 && (
+                  <tr><td colSpan={6} className="emptyRow">No records found.</td></tr>
+                )}
+                {!loading &&
+                  filtered.map((item, idx) => {
+                    const isFirstMatch = debounced && idx === 0;
+                    return (
+                      <motion.tr
+                        key={item.id}
+                        ref={isFirstMatch ? firstMatchRef : null}
+                        className="r"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18, delay: idx * 0.02 }}
+                        onClick={() => onRowClick(item.id)}
+                        onMouseEnter={(e) => onEnter(item, e)}
+                        onMouseLeave={onLeave}
+                      >
+                        <td className="col-num">{item.number}</td>
+                        <td>{item.title}</td>
+                        <td>{item.type}</td>
+                        <td>
+                          {safeArr(item.category).map((c, i) => (
+                            <span key={`${c}-${i}`} className="pill">{c}</span>
+                          ))}
+                        </td>
+                        <td>{safeArr(item.tags).length ? safeArr(item.tags).join(", ") : "—"}</td>
+                        <td>{fmtDate(item.createdAt)}</td>
+                      </motion.tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="archCards">
+              {loading && <div className="loadingRow">Loading…</div>}
+              {!loading && filtered.length === 0 && <div className="emptyRow">No records found.</div>}
+              {!loading && filtered.map((item, idx) => {
+                const isFirstMatch = debounced && idx === 0;
+                return (
+                  <motion.article
+                    key={item.id}
+                    ref={isFirstMatch ? firstMatchRef : null}
+                    className="archCard"
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, delay: idx * 0.035 }}
+                  >
+                    <button
+                      type="button"
+                      className="archCard__button"
                       onClick={() => onRowClick(item.id)}
-                      onMouseEnter={(e) => onEnter(item, e)}
-                      onMouseLeave={onLeave}
+                      aria-label={`Open archive item ${item.title || 'Untitled'}`}
                     >
-                      <td className="col-num">{item.number}</td>
-                      <td>{item.title}</td>
-                      <td>{item.type}</td>
-                      <td>
-                        {safeArr(item.category).map((c, i) => (
-                          <span key={`${c}-${i}`} className="pill">{c}</span>
-                        ))}
-                      </td>
-                      <td>{safeArr(item.tags).length ? safeArr(item.tags).join(", ") : "—"}</td>
-                      <td>{fmtDate(item.createdAt)}</td>
-                    </motion.tr>
-                  );
-                })}
-            </tbody>
-          </table>
+                      <header className="archCard__header">
+                        <span className="archCard__num">#{item.number}</span>
+                        <h3 className="archCard__title">{item.title || 'Untitled'}</h3>
+                      </header>
+                      <div className="archCard__meta">
+                        <span>{item.type || '—'}</span>
+                        <span>{fmtDate(item.createdAt)}</span>
+                      </div>
+                      {safeArr(item.category).length > 0 && (
+                        <div className="archCard__chips">
+                          {safeArr(item.category).map((c, i) => (
+                            <span key={`${c}-${i}`} className="archCard__chip">{c}</span>
+                          ))}
+                        </div>
+                      )}
+                      <footer className="archCard__footer">
+                        <span>{safeArr(item.tags).length ? safeArr(item.tags).join(', ') : 'No tags'}</span>
+                      </footer>
+                    </button>
+                  </motion.article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </>
