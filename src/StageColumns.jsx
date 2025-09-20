@@ -7,7 +7,7 @@ import HivModelStage from './HivModelStage';
 // pdf.js Worker (einmal in public/ bereitstellen: pdf.worker.min.js)
 pdfjsLib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.js`;
 
-export default function StageColumns({ menuOpen }) {
+export default function StageColumns({ menuOpen, pdfOn }) {
   const [pdf, setPdf] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -46,7 +46,7 @@ export default function StageColumns({ menuOpen }) {
 
   // --- PDF SEITEN RENDERN ---
   useEffect(() => {
-    if (menuOpen) return;
+    if (menuOpen || !pdfOn) return;
     if (!pdf || totalPages === 0) return;
     const root = pdfContainerRef.current;
     if (!root) return;
@@ -78,7 +78,7 @@ export default function StageColumns({ menuOpen }) {
     items.forEach((el, i) => { el.dataset.index = i; io.observe(el); });
     renderIfNeeded(0);
     return () => io.disconnect();
-  }, [pdf, totalPages, isMobile, menuOpen]);
+  }, [pdf, totalPages, isMobile, menuOpen, pdfOn]);
 
   const queueRenderPage = (loadedPdf, num, canvas, scale = 1.5) => {
     renderQueue.current = renderQueue.current.then(() =>
@@ -115,7 +115,7 @@ export default function StageColumns({ menuOpen }) {
     const pdfEl = pdfContainerRef.current;
     const textEl = textContainerRef.current;
     const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced || !pdfEl || !textEl || menuOpen || isMobile) return;
+    if (prefersReduced || !pdfEl || !textEl || menuOpen || isMobile || !pdfOn) return;
 
     let desired = 0, current = 0, rafId;
     const factor = 0.35, ease = 0.12;
@@ -134,11 +134,11 @@ export default function StageColumns({ menuOpen }) {
 
     pdfEl.addEventListener('scroll', onScroll, { passive: true });
     return () => { pdfEl.removeEventListener('scroll', onScroll); if (rafId) cancelAnimationFrame(rafId); };
-  }, [isMobile, menuOpen]);
+  }, [isMobile, menuOpen, pdfOn]);
 
   // --- Fade-In je Seite ---
   useEffect(() => {
-    if (menuOpen) return;
+    if (menuOpen || !pdfOn) return;
     const items = pageWrapRefs.current.filter(Boolean);
     if (!items.length) return;
     const io = new IntersectionObserver(
@@ -147,14 +147,14 @@ export default function StageColumns({ menuOpen }) {
     );
     items.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [totalPages, menuOpen]);
+  }, [totalPages, menuOpen, pdfOn]);
 
   // --- Smooth Wheel Scroll (Desktop) ---
   useEffect(() => {
     const pdfEl = pdfContainerRef.current;
     if (!pdfEl) return;
     const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (menuOpen || prefersReduced || isMobile) return;
+    if (menuOpen || prefersReduced || isMobile || !pdfOn) return;
 
     let desired = pdfEl.scrollTop, current = pdfEl.scrollTop, rafId = null;
     const ease = 0.14;
@@ -194,7 +194,11 @@ export default function StageColumns({ menuOpen }) {
       pdfEl.removeEventListener('keydown', onKeyDown);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isMobile, menuOpen]);
+  }, [isMobile, menuOpen, pdfOn]);
+
+  useEffect(() => {
+    if (!pdfOn) setSheetOpen(false);
+  }, [pdfOn]);
 
   return (
     <>
@@ -218,11 +222,13 @@ export default function StageColumns({ menuOpen }) {
               overflowY: 'scroll', overflowX: 'visible', perspective: '1000px',
               padding: '0 16px 24px', gap: 20, scrollBehavior: 'auto', overscrollBehavior: 'contain',
               scrollbarGutter: 'stable', outline: 'none',
+              pointerEvents: pdfOn ? 'auto' : 'none',
             }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={false}
+            animate={{ opacity: pdfOn ? 1 : 0, y: pdfOn ? 0 : 16 }}
             exit={{ opacity: 0, y: 12 }}
-            transition={{ ease: 'easeOut', duration: 0.5 }}
+            transition={{ ease: 'easeOut', duration: 0.45 }}
+            aria-hidden={!pdfOn}
           >
             {Array.from({ length: totalPages }, (_, i) => (
               <div
@@ -259,11 +265,13 @@ export default function StageColumns({ menuOpen }) {
               color: '#9370DB', fontSize: 12, lineHeight: 1.55, padding: '14px 16px',
               textAlign: 'right', zIndex: 4, position: 'relative', transform: 'rotateY(28deg)',
               transformStyle: 'preserve-3d', scrollBehavior: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable',
+              pointerEvents: pdfOn ? 'auto' : 'none',
             }}
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={false}
+            animate={{ opacity: pdfOn ? 1 : 0, x: pdfOn ? 0 : 16 }}
             exit={{ opacity: 0, x: 12 }}
-            transition={{ ease: 'easeOut', duration: 0.45, delay: 0.06 }}
+            transition={{ ease: 'easeOut', duration: 0.4, delay: pdfOn ? 0.06 : 0 }}
+            aria-hidden={!pdfOn}
           >
             <RightTextComponent />
           </motion.div>
@@ -271,7 +279,7 @@ export default function StageColumns({ menuOpen }) {
       </AnimatePresence>
 
       {/* Mobile Bottom Sheet */}
-      {isMobile && (
+      {isMobile && pdfOn && (
         <>
           <button
             type="button"

@@ -12,6 +12,7 @@ function Hauptseite() {
   const [selectedArchiveItemId, setSelectedArchiveItemId] = useState(null);
   // --- MENU state & helpers ---
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pdfOn, setPdfOn] = useState(false);
 
   // ESC to close + lock body scroll when menu is open
   useEffect(() => {
@@ -23,6 +24,34 @@ function Hauptseite() {
       return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
     }
   }, [menuOpen]);
+
+  useEffect(() => {
+    document.body.classList.toggle('_pdfOn', pdfOn);
+    if (pdfOn) {
+      const revealNow = () => {
+        const vh = window.innerHeight || 1;
+        document.querySelectorAll('._pdfWrap').forEach((el) => {
+          if (!el.classList.contains('_visible')) {
+            const r = el.getBoundingClientRect();
+            if (r.top < vh * 0.96 && r.bottom > 0) {
+              el.classList.add('_visible');
+              el.style.removeProperty('opacity');
+              el.style.removeProperty('transform');
+              el.style.removeProperty('filter');
+            }
+          }
+        });
+      };
+      if (typeof window !== 'undefined') {
+        window.requestAnimationFrame(revealNow);
+      } else {
+        revealNow();
+      }
+    }
+    return () => {
+      document.body.classList.remove('_pdfOn');
+    };
+  }, [pdfOn]);
 
   // --- INTERAKTIVER TITEL (TRACES OF HIV) ---
   const MENU_SENTENCES = {
@@ -39,8 +68,6 @@ function Hauptseite() {
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
   const lastScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
   const scrollDirRef = useRef(1); // 1 = down, -1 = up
-  const hasScrolledRef = useRef(false);
-
   useEffect(() => {
     const lastTickRef = { t: 0 };
     const tick = (strength = 2) => {
@@ -63,8 +90,6 @@ function Hauptseite() {
       const y = window.scrollY || 0;
       scrollDirRef.current = y >= lastScrollYRef.current ? 1 : -1;
       lastScrollYRef.current = y;
-      hasScrolledRef.current = true;
-      document.body.classList.add('_scrolled');
       tick(1);
     };
 
@@ -143,51 +168,57 @@ function Hauptseite() {
     setGlitchSet(indices);
   };
 
-  // Reveal PDFs from bottom on downscroll (robust)
+  // Reveal PDFs after toggle and when they enter viewport
   useEffect(() => {
-    const observeSet = new Set();
+    const observed = new Set();
 
-    const hideInitial = () => {
-      document.querySelectorAll('._pdfWrap').forEach(el => el.classList.remove('_visible'));
+    const revealIfEligible = (el) => {
+      if (!document.body.classList.contains('_pdfOn')) return;
+      if (!el || el.classList.contains('_visible')) return;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      const intersects = r.top < vh * 0.96 && r.bottom > 0;
+      if (intersects) {
+        el.classList.add('_visible');
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('transform');
+        el.style.removeProperty('filter');
+        return true;
+      }
+      return false;
     };
 
     const io = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
+        const el = entry.target;
         if (!entry.isIntersecting) return;
-        const rootBottom = (entry.rootBounds && entry.rootBounds.bottom) || window.innerHeight;
-        const enteringFromBottom = entry.boundingClientRect.top >= rootBottom - Math.min(140, rootBottom * 0.2);
-        const scrollingDown = scrollDirRef.current === 1;
-        // Only after user scrolled at least once; reveal when scrolling down and either entering from bottom or sufficiently visible
-        if (hasScrolledRef.current && scrollingDown && (enteringFromBottom || entry.intersectionRatio > 0.22)) {
-          entry.target.classList.add('_visible');
-          entry.target.style.removeProperty('opacity');
-          entry.target.style.removeProperty('transform');
-          entry.target.style.removeProperty('filter');
-          io.unobserve(entry.target);
-          observeSet.delete(entry.target);
+        if (document.body.classList.contains('_pdfOn') && entry.intersectionRatio > 0.06) {
+          el.classList.add('_visible');
+          el.style.removeProperty('opacity');
+          el.style.removeProperty('transform');
+          el.style.removeProperty('filter');
+          io.unobserve(el);
+          observed.delete(el);
           triggerGlitch(2);
         }
       });
-    }, { threshold: [0, 0.12, 0.22, 0.5], rootMargin: '0px 0px -6% 0px' });
+    }, { threshold: [0, 0.06, 0.2], rootMargin: '0px 0px -2% 0px' });
 
     const track = (el) => {
-      if (!el || observeSet.has(el)) return;
-      el.classList.remove('_visible'); // ensure hidden until reveal
+      if (!el || observed.has(el)) return;
+      el.classList.remove('_visible');
       io.observe(el);
-      observeSet.add(el);
+      observed.add(el);
     };
 
-    // Initial scan
-    hideInitial();
     document.querySelectorAll('._pdfWrap').forEach(track);
 
-    // Re-scan a few times as PDFs mount lazily
-    const rescans = [220, 650, 1200, 2200];
-    const timers = rescans.map(t => setTimeout(() => {
-      document.querySelectorAll('._pdfWrap').forEach(track);
-    }, t));
+    const onScrollReveal = () => {
+      if (!document.body.classList.contains('_pdfOn')) return;
+      document.querySelectorAll('._pdfWrap').forEach(revealIfEligible);
+    };
+    window.addEventListener('scroll', onScrollReveal, { passive: true });
 
-    // MutationObserver to catch dynamically added PDF nodes
     const mo = new MutationObserver((muts) => {
       muts.forEach(m => {
         m.addedNodes && m.addedNodes.forEach((n) => {
@@ -202,24 +233,9 @@ function Hauptseite() {
     return () => {
       io.disconnect();
       mo.disconnect();
-      timers.forEach(clearTimeout);
-      observeSet.clear();
+      window.removeEventListener('scroll', onScrollReveal);
+      observed.clear();
     };
-  }, []);
-
-  // Auto-hide the small red scroll prompt after user scrolls or first PDF reveals
-  useEffect(() => {
-    const prompt = document.querySelector('._scrollMini');
-    if (!prompt) return;
-    const hide = () => prompt.classList.add('_hide');
-    const onScroll = () => hide();
-    const firstVisible = () => {
-      const anyVisible = document.querySelector('._pdfWrap._visible');
-      if (anyVisible) hide();
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    const iv = window.setInterval(firstVisible, 250);
-    return () => { window.removeEventListener('scroll', onScroll); window.clearInterval(iv); };
   }, []);
 
   return (
@@ -253,10 +269,10 @@ function Hauptseite() {
         ._menuFabBtn {
           position: fixed;
           left: clamp(12px, 2.4vw, 22px);
-          bottom: clamp(12px, 2.8vw, 24px);
+          bottom: clamp(12px, 3vw, 28px);
           z-index: 11;
-          width: clamp(44px, 6.4vw, 64px);
-          height: clamp(44px, 6.4vw, 64px);
+          width: clamp(58px, 8vw, 92px);
+          height: clamp(58px, 8vw, 92px);
           border-radius: 999px;
           background: radial-gradient(120% 120% at 30% 30%, #ff3b3b 0%, #ff0000 55%, #d80000 100%);
           border: none;
@@ -271,16 +287,16 @@ function Hauptseite() {
         ._menuFabBtn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 16px 36px rgba(255,0,0,.34), 0 0 34px rgba(255,0,0,.5); filter: brightness(1.05); }
         ._menuFabBtn:active { transform: translateY(0) scale(.98); }
         ._menuFabBtn:focus-visible { outline: 2px solid rgba(255,255,255,.9); outline-offset: 3px; }
-        ._menuIcon { position: relative; width: 52%; height: 52%; }
-        ._menuIcon span { position: absolute; left: 0; right: 0; height: 2px; background: #fff; border-radius: 2px; transition: transform .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease; box-shadow: 0 0 8px rgba(255,255,255,.55); }
-        ._menuIcon span:nth-child(1) { top: 18%; width: 78%; margin: 0 auto; }
-        ._menuIcon span:nth-child(2) { top: 48%; width: 60%; margin: 0 auto; }
-        ._menuIcon span:nth-child(3) { top: 78%; width: 78%; margin: 0 auto; }
+        ._menuIcon { position: relative; width: 58%; height: 58%; }
+        ._menuIcon span { position: absolute; left: 0; right: 0; height: 3px; background: #fff; border-radius: 3px; transition: transform .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease; box-shadow: 0 0 8px rgba(255,255,255,.55); }
+        ._menuIcon span:nth-child(1) { top: 18%; width: 82%; margin: 0 auto; }
+        ._menuIcon span:nth-child(2) { top: 50%; width: 64%; margin: 0 auto; }
+        ._menuIcon span:nth-child(3) { top: 82%; width: 82%; margin: 0 auto; }
         ._menuFabBtn:hover ._menuIcon span:nth-child(1) { transform: translateY(-1px); width: 86%; }
         ._menuFabBtn:hover ._menuIcon span:nth-child(2) { transform: translateX(2px); width: 70%; }
         ._menuFabBtn:hover ._menuIcon span:nth-child(3) { transform: translateY(1px); width: 86%; }
         @media (max-width: 900px) {
-          ._menuFabBtn { left: 12px; bottom: 12px; }
+          ._menuFabBtn { left: 12px; bottom: 16px; }
         }
 
         /* Tablet: Panel etwas schmaler */
@@ -310,29 +326,20 @@ function Hauptseite() {
 
         ._pdfWrap {
           opacity: 0;
-          transform: translateY(46px) scale(.992);
-          filter: blur(2.1px);
-          transition: opacity 700ms cubic-bezier(.16,.84,.24,1), transform 780ms cubic-bezier(.16,.84,.24,1), filter 620ms cubic-bezier(.16,.84,.24,1);
+          transform: translateY(36px) scale(.992);
+          filter: blur(1.8px);
+          transition: opacity 900ms cubic-bezier(.22,.61,.36,1), transform 980ms cubic-bezier(.22,.61,.36,1), filter 800ms cubic-bezier(.22,.61,.36,1);
           will-change: transform, opacity, filter;
         }
         /* Prevent premature visibility before any scroll */
         ._pdfWrap._visible { opacity: 0; }
 
-        /* Reveal only after first user scroll */
-        body._scrolled ._pdfWrap._visible {
+        /* Reveal controlled via toggle */
+        body._pdfOn ._pdfWrap._visible {
           opacity: 1;
           transform: translateY(0) scale(1);
           filter: blur(0px);
         }
-        ._scrollMini {
-          position: fixed; left: 50%; bottom: clamp(10px, 3.6vh, 32px); transform: translateX(-50%);
-          z-index: 6; pointer-events: none; font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
-          color: #ff0000; opacity: .92; display: grid; place-items: center; gap: 6px;
-          animation: _hintFloat 1.6s ease-in-out infinite;
-        }
-        ._scrollMini._hide { opacity: 0; transition: opacity .28s ease; }
-        ._scrollMini ._chev { width: 12px; height: 12px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
-        @keyframes _hintFloat { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 5px); } }
         ._pdfWrap:hover {
           transform: translateY(-2px) scale(1.002) rotateX(0deg) !important;
           transition-duration: 300ms;
@@ -341,6 +348,49 @@ function Hauptseite() {
 
         ._rightText a { color: #ff0000; text-decoration: none; }
         ._rightText a:hover { text-decoration: underline; }
+
+        /* Floating red PDF toggle (above the menu button) */
+        ._pdfFabBtn {
+          position: fixed;
+          left: clamp(12px, 2.4vw, 22px);
+          bottom: calc(clamp(12px, 3vw, 28px) + clamp(72px, 9vw, 96px) + clamp(16px, 2.6vh, 32px));
+          z-index: 11;
+          width: clamp(60px, 8.6vw, 96px);
+          height: clamp(60px, 8.6vw, 96px);
+          border-radius: 999px;
+          background: radial-gradient(120% 120% at 30% 30%, #ff3b3b 0%, #ff0000 55%, #d80000 100%);
+          border: none;
+          box-shadow: 0 10px 28px rgba(255,0,0,.28), 0 0 22px rgba(255,0,0,.38);
+          display: inline-grid;
+          place-items: center;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, background .22s ease, filter .22s ease;
+          backdrop-filter: saturate(1.05);
+        }
+        ._pdfFabBtn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 16px 36px rgba(255,0,0,.34), 0 0 34px rgba(255,0,0,.5); filter: brightness(1.05); }
+        ._pdfFabBtn:active { transform: translateY(0) scale(.98); }
+        ._pdfFabBtn:focus-visible { outline: 2px solid rgba(255,255,255,.9); outline-offset: 3px; }
+        ._pdfFabBtn._on {
+          box-shadow: 0 14px 32px rgba(255,0,0,.36), 0 0 38px rgba(255,0,0,.52), 0 0 0 1px rgba(255,0,0,.25) inset;
+          filter: brightness(1.06) saturate(1.04);
+        }
+        ._pdfLabel {
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          font-size: clamp(14px, 2.6vw, 22px);
+          color: #fff;
+          text-shadow: 0 0 10px rgba(255,255,255,.45);
+          user-select: none;
+        }
+        @media (max-width: 900px) {
+          ._pdfFabBtn {
+            left: 12px;
+            bottom: calc(16px + clamp(72px, 9vw, 96px) + clamp(16px, 2.6vh, 32px));
+          }
+        }
 
         ._surface {
           background: transparent;
@@ -440,12 +490,20 @@ function Hauptseite() {
       {/* INTERAKTIVER HEADER-TITEL */}
       <TitleHeader titleText={titleText} glitchSet={glitchSet} />
 
-      {/* Minimal red scroll prompt */}
-      <div className="_scrollMini" aria-hidden>
-        <div className="_chev" />
-        <div>scroll to reveal</div>
-      </div>
-
+      {/* Bottom-left floating PDF toggle (shows/hides PDFs) */}
+      {!menuOpen && (
+        <button
+          type="button"
+          className={`_pdfFabBtn${pdfOn ? ' _on' : ''}`}
+          aria-label={pdfOn ? 'Hide archive pages' : 'Show archive pages'}
+          onClick={(e) => {
+            e.stopPropagation();
+            setPdfOn((prev) => !prev);
+          }}
+        >
+          <span className="_pdfLabel" aria-hidden>PDF</span>
+        </button>
+      )}
 
       {/* Fullpage Menu Overlay (separate component) */}
       <RedMenuOverlay
@@ -485,7 +543,7 @@ function Hauptseite() {
         </button>
       )}
 
-      <StageColumns menuOpen={menuOpen} />
+      <StageColumns menuOpen={menuOpen} pdfOn={pdfOn} />
       {/* ARCHIVE on red menu layer */}
       {menuOpen && selectedMenu === 'Archive' && (
         !selectedArchiveItemId ? (
