@@ -78,15 +78,15 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
           pointer-events: auto;
           padding: 0 clamp(10px, 2vw, 20px) 16px;
         }
-        .detail__inner { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
-        .detail__title { margin: 0 0 8px; font-size: clamp(20px, 6.4vw, 56px); line-height: 1.02; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
-        @media (max-width: 560px) { .detail__title { white-space: normal; text-wrap: balance; line-height: 1.08; } }
+        .detail__inner { width: min(1180px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
+        .detail__title { margin: 0 0 8px; font-size: clamp(20px, 6.4vw, 56px); line-height: 1.04; letter-spacing: .06em; text-transform: uppercase; white-space: normal; text-wrap: balance; overflow-wrap: anywhere; word-break: normal; word-spacing: .16em; }
+        @media (max-width: 560px) { .detail__title { line-height: 1.1; } }
         ._titleLine { word-spacing: .18em; }
         @media (max-width: 560px) { ._titleLine { } }
         .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
         .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
         .detail__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
-        .detail__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
+        .detail__grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: clamp(12px, 2vw, 24px); align-items: start; }
         .detail__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); }
         .detail__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
         .detail__backHint { margin-top: 12px; opacity: .8; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
@@ -109,10 +109,15 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
         .detail__table tr:nth-child(even) { background: rgba(255,255,255,0.04); }
         .detail__table tr:hover { background: rgba(255,255,255,0.08); }
         .detail__sectionTitle { border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
-        @media (max-width: 900px) { .detail__grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+          .detail__grid { grid-template-columns: 1fr; gap: clamp(16px, 4vw, 28px); }
+          .detail__meta { gap: 6px 10px; }
+          .detail__extras, .detail__relatedWrap { width: 100%; }
+          .detail__relatedList { grid-template-columns: 1fr; }
+        }
         .detail__relatedWrap { width: min(1200px, 92vw); margin: 40px auto 0; }
         .detail__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
-        .detail__relatedList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .detail__relatedList { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
         .detail__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
         .detail__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
         .detail__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
@@ -131,8 +136,12 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
               <h2 className="detail__title">{item.title || 'Untitled'}</h2>
               <div className="detail__meta">
                 {item.type && <span className="detail__pillType">{item.type}</span>}
-                {safeArr(item.category).map((c,i) => <span className="detail__pill" key={i}>{c}</span>)}
-                {safeArr(item.tags).length > 0 && <span>Tags: {safeArr(item.tags).join(', ')}</span>}
+                {safeArr(item.category).map((c,i) => (
+                  <span key={`${c}-${i}`} className="detail__pill">{c}</span>
+                ))}
+                {safeArr(item.tags).length > 0 && (
+                  <span>Tags: {safeArr(item.tags).join(', ')}</span>
+                )}
               </div>
               <div className="detail__grid">
                 <div className="detail__media">
@@ -437,23 +446,24 @@ export default function Archive({ onClose, onOpenItem }) {
           width: min(1180px, calc(100% - 2 * var(--archGutter)));
           margin: 0 auto;
           background: transparent;
-          padding: 0 clamp(18px, 4vw, 38px) clamp(18px, 4vw, 32px);
+          padding: clamp(12px, 3.5vw, 28px) clamp(18px, 4vw, 38px) clamp(18px, 4vw, 32px);
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
           animation: archSlide .48s cubic-bezier(.2,.8,.2,1) forwards;
         }
         /* center header contents to same max width as table */
-        .arch__header { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; gap: 12px; padding: 8px 0 10px; color: #fff; background: transparent; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        .arch__header { width: 100%; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 8px 0 16px; color: #fff; background: transparent; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
         .arch__search {
-          padding: 10px 16px;
+          padding: clamp(10px, 1.8vw, 14px) clamp(16px, 3vw, 22px);
           border-radius: 999px;
           border: 2px solid rgba(255,255,255,.9);
           background: rgba(255,255,255,.15);
           color: #fff;
           outline: none;
           font-size: 14px;
-          width: min(540px, 100%);
+          width: 100%;
+          max-width: min(1180px, calc(100% - 2 * clamp(18px, 4vw, 38px)));
           transition: box-shadow .2s ease, background .2s ease, border-color .2s ease;
           font-family: 'Arial Black', Arial, Helvetica, sans-serif;
         }
@@ -464,7 +474,7 @@ export default function Archive({ onClose, onOpenItem }) {
           border-color: #fff;
         }
         /* body takes remaining height and scrolls */
-        .arch__body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 6px 0 0; font-family: 'Arial Black', Arial, Helvetica, sans-serif; animation: archFade .46s ease forwards; }
+        .arch__body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: clamp(6px, 1.2vw, 12px) 0 0; font-family: 'Arial Black', Arial, Helvetica, sans-serif; animation: archFade .46s ease forwards; }
         /* table: centered with equal left/right spacing, slightly smaller text */
         .archTable { width: 100%; margin: 0 auto; border-collapse: collapse; font-size: .82rem; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; animation: archFade .46s ease forwards; }
         .archTable th, .archTable td { padding: 10px clamp(10px, 2.4vw, 18px); border-bottom: 2.5px solid rgba(255,255,255,.92); vertical-align: middle; }
@@ -552,23 +562,23 @@ export default function Archive({ onClose, onOpenItem }) {
         .hoverImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .archCards { display: none; }
         @media (max-width: 850px) {
-          .arch__container { top: calc(var(--hdrH, 120px) + 56px); width: calc(100% - clamp(28px, 10vw, 68px)); padding: 0 clamp(14px, 5vw, 24px) clamp(18px, 5vw, 28px); box-sizing: border-box; }
-          .arch__header { gap: 8px; justify-items: stretch; }
+          .arch__container { top: calc(var(--hdrH, 120px) + 56px); width: calc(100% - clamp(28px, 10vw, 68px)); padding: clamp(10px, 4vw, 18px) clamp(14px, 5vw, 24px) clamp(18px, 5vw, 28px); box-sizing: border-box; }
+          .arch__header { gap: 8px; width: 100%; justify-content: center; }
           .arch__search { width: 100%; max-width: none; }
           .arch__body { padding-bottom: 24px; }
           .archTable { display: none; }
-          .archCards { display: grid; gap: 16px; width: 100%; animation: archFade .48s ease forwards; }
+          .archCards { display: grid; gap: 14px; width: 100%; animation: archFade .48s ease forwards; }
           .archCard {
-            border: 2px solid rgba(255,255,255,.85);
+            border: 2px solid rgba(255,255,255,.5);
             border-radius: 16px;
-            background: rgba(15,0,0,0.24);
-            backdrop-filter: blur(8px) saturate(1.08);
-            -webkit-backdrop-filter: blur(8px) saturate(1.08);
-            box-shadow: 0 16px 36px rgba(0,0,0,0.24);
+            background: rgba(15,0,0,0.08);
+            backdrop-filter: blur(6px) saturate(1.02);
+            -webkit-backdrop-filter: blur(6px) saturate(1.02);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.18);
           }
           .archCard__button {
             width: 100%;
-            padding: 16px 16px 14px;
+            padding: 16px clamp(14px, 5vw, 20px) 14px;
             background: transparent;
             border: none;
             color: #fff;
@@ -578,12 +588,13 @@ export default function Archive({ onClose, onOpenItem }) {
             cursor: pointer;
           }
           .archCard__header { display: flex; align-items: baseline; gap: 12px; }
-          .archCard__num { font-size: 0.9rem; opacity: .9; letter-spacing: .14em; text-transform: uppercase; }
+          .archCard__num { font-size: 0.85rem; opacity: .78; letter-spacing: .18em; text-transform: uppercase; }
           .archCard__title { margin: 0; font-size: 1.12rem; line-height: 1.2; text-transform: uppercase; letter-spacing: .06em; }
-          .archCard__meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+          .archCard__meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; opacity: .72; }
           .archCard__chips { display: flex; flex-wrap: wrap; gap: 6px; }
-          .archCard__chip { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; border: 2px solid rgba(255,255,255,.85); font-size: .72rem; letter-spacing: .05em; }
-          .archCard__footer { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .74rem; letter-spacing: .04em; opacity: .84; }
+          .archCard__chip { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; border: 2px solid rgba(255,255,255,.46); font-size: .68rem; letter-spacing: .05em; background: rgba(255,255,255,0.06); }
+          .archCard__chipType { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; background: #ffffff; color: #cc0000; font-weight: 900; letter-spacing: .08em; font-size: .7rem; }
+          .archCard__footer { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .72rem; letter-spacing: .04em; opacity: .78; }
           .archCard__button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; border-radius: 16px; }
           .archCard__button:active { transform: scale(.99); }
         }
@@ -700,11 +711,13 @@ export default function Archive({ onClose, onOpenItem }) {
                         <h3 className="archCard__title">{item.title || 'Untitled'}</h3>
                       </header>
                       <div className="archCard__meta">
-                        <span>{item.type || '—'}</span>
                         <span>{fmtDate(item.createdAt)}</span>
                       </div>
-                      {safeArr(item.category).length > 0 && (
+                      {(item.type || safeArr(item.category).length > 0) && (
                         <div className="archCard__chips">
+                          {item.type && (
+                            <span className="archCard__chipType">{item.type}</span>
+                          )}
                           {safeArr(item.category).map((c, i) => (
                             <span key={`${c}-${i}`} className="archCard__chip">{c}</span>
                           ))}

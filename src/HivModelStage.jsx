@@ -38,11 +38,16 @@ function ResponsiveModel({ rightBias = 1.0 }) {
   const groupRef = React.useRef();
   const controlsRef = React.useRef();
 
-  // target values (based on viewport); keep relatively large
-  const base = Math.max(size.width, size.height) / 900; // 900px ≈ 1.0
-  const targetScale = THREE.MathUtils.clamp(base * 1.15, 0.95, 2.0);
-  const biasFactor = THREE.MathUtils.clamp(size.width / 1200, 0.7, 1.7);
-  const targetOffsetX = Math.min(rightBias * biasFactor, 2.2);
+  // target values (based on viewport); gentle scaling across aspect ratios
+  const widthForScale = THREE.MathUtils.clamp(size.width, 640, 1400);
+  const heightForScale = THREE.MathUtils.clamp(size.height, 600, 1200);
+
+  const scaleForWidth = THREE.MathUtils.mapLinear(widthForScale, 640, 1400, 1.45, 2.05);
+  const scaleForHeight = THREE.MathUtils.mapLinear(heightForScale, 600, 1200, 1.25, 1.85);
+  const targetScale = THREE.MathUtils.clamp(scaleForWidth * 0.7 + scaleForHeight * 0.3, 1.35, 2.1);
+
+  const biasFactor = THREE.MathUtils.clamp(size.width / 1300, 0.6, 1.6);
+  const targetOffsetX = THREE.MathUtils.clamp(rightBias * biasFactor, 0.22, 2.1);
 
   // smooth state (no jumps)
   const smooth = React.useRef({ scale: targetScale, offsetX: targetOffsetX });
@@ -62,7 +67,9 @@ function ResponsiveModel({ rightBias = 1.0 }) {
     }
 
     // keep camera distance proportional (slightly conservative so it stays big)
-    camera.position.set(3 / (s * 0.92), 4 / (s * 0.92), 5 / (s * 0.92));
+    const widthBlend = THREE.MathUtils.clamp((size.width - 640) / (1400 - 640), 0, 1);
+    const distanceScale = THREE.MathUtils.lerp(0.82, 0.94, widthBlend);
+    camera.position.set(3 / (s * distanceScale), 4 / (s * distanceScale), 5 / (s * distanceScale));
     camera.updateProjectionMatrix();
 
     // update controls target smoothly
