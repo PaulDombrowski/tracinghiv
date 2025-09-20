@@ -1,7 +1,243 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, getDocs, query as fsQuery, orderBy } from "firebase/firestore";
+import { getFirestore, collection, getDocs, query as fsQuery, orderBy, doc, getDoc, where, limit } from "firebase/firestore";
 import { motion } from "framer-motion";
+export function ItemDetail({ id, onBack, onClose, onOpen }) {
+  const [item, setItem] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [related, setRelated] = React.useState([]);
+  const [relLoading, setRelLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'uploads', id));
+        if (alive) setItem(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      } catch (e) {
+        console.error('Detail load error:', e);
+        if (alive) setItem(null);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [id]);
+
+  const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+  // Load related items based on shared categories
+  React.useEffect(() => {
+    const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+    let alive = true;
+    (async () => {
+      if (!item) return;
+      const cats = safeArr(item.category).filter(Boolean);
+      if (!cats.length) { setRelated([]); return; }
+      try {
+        setRelLoading(true);
+        const coll = collection(db, 'uploads');
+        // Query by any shared category; then filter/sort client-side
+        const q = fsQuery(coll, where('category', 'array-contains-any', cats), limit(10));
+        const snap = await getDocs(q);
+        const list = [];
+        snap.forEach((docu) => list.push({ id: docu.id, ...docu.data() }));
+        // Exclude self, score by number of shared categories
+        const scored = list
+          .filter((d) => d.id !== item.id)
+          .map((d) => {
+            const dCats = safeArr(d.category).filter(Boolean);
+            const shared = dCats.filter((c) => cats.includes(c)).length;
+            return { ...d, __score: shared };
+          })
+          .sort((a, b) => b.__score - a.__score);
+        const top3 = scored.slice(0, 3);
+        if (alive) setRelated(top3);
+      } catch (e) {
+        console.error('Related load error:', e);
+        if (alive) setRelated([]);
+      } finally {
+        if (alive) setRelLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [item]);
+
+  return (
+    <div className="detail__wrap" role="region" aria-label="Item detail">
+      <style>{`
+        .detail__wrap { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
+        .detail__scroll {
+          position: fixed;
+          left: 0; right: 0;
+          top: calc(var(--hdrH,120px) + 76px);
+          bottom: 0;
+          z-index: 9; /* below RedMenu controls (z:10) */
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+          pointer-events: auto;
+          padding: 0 clamp(10px, 2vw, 20px) 16px;
+        }
+        .detail__inner { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
+        .detail__title { margin: 0 0 8px; font-size: clamp(20px, 6.4vw, 56px); line-height: 1.02; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
+        @media (max-width: 560px) { .detail__title { white-space: normal; text-wrap: balance; line-height: 1.08; } }
+        ._titleLine { word-spacing: .18em; }
+        @media (max-width: 560px) { ._titleLine { } }
+        .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
+        .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
+        .detail__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        .detail__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
+        .detail__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); }
+        .detail__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
+        .detail__backHint { margin-top: 12px; opacity: .8; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
+        .detail__extras { width: min(1200px, 92vw); margin: 16px auto 0; color: #fff; font-family: Arial, Helvetica, sans-serif; }
+        .detail__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; }
+        .detail__filelist { display: grid; gap: 6px; }
+        .detail__filelist a { color: #fff; text-decoration: underline; word-break: break-all; }
+        .detail__table { width: 100%; border-collapse: collapse; font-size: clamp(12px, 1.4vw, 14px); }
+        .detail__table th, .detail__table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.25); vertical-align: top; }
+        .detail__table th { text-align: left; font-weight: 800; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: .03em; white-space: nowrap; }
+        .detail__links { display: grid; gap: 6px; }
+        .detail__links a { color: #fff; text-decoration: underline; word-break: break-all; }
+        /* subtle grain overlay */
+        .detail__wrap::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 3px 3px; opacity: .35; mix-blend-mode: soft-light; }
+        /* media wrapper for vignette/tint */
+        .detail__media { position: relative; }
+        .detail__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%); mix-blend-mode: soft-light; animation: breathe 3.6s ease-in-out infinite; opacity: .9; border-radius: 12px; }
+        @keyframes breathe { 0%,100% { filter: saturate(1) contrast(1); } 50% { filter: saturate(1.08) contrast(1.05); } }
+        /* zebra table + subtle highlight */
+        .detail__table tr:nth-child(even) { background: rgba(255,255,255,0.04); }
+        .detail__table tr:hover { background: rgba(255,255,255,0.08); }
+        .detail__sectionTitle { border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
+        @media (max-width: 900px) { .detail__grid { grid-template-columns: 1fr; } }
+        .detail__relatedWrap { width: min(1200px, 92vw); margin: 40px auto 0; }
+        .detail__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
+        .detail__relatedList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .detail__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+        .detail__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
+        .detail__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+        .detail__cardBody { padding: 8px 10px; color: #fff; }
+        .detail__cardTitle { margin: 0 0 6px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(12px, 1.6vw, 16px); line-height: 1.2; text-transform: uppercase; letter-spacing: .04em; }
+        .detail__cardType { display:inline-block; padding:4px 8px; border-radius:999px; background:#fff; color:#cc0000; font-size:.72rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
+        @media (max-width: 900px) { .detail__relatedList { grid-template-columns: 1fr; } }
+      `}</style>
+
+      <div className="detail__scroll">
+        <div className="detail__inner">
+          {loading && <div>Loading…</div>}
+          {!loading && !item && <div>Not found.</div>}
+          {!loading && item && (
+            <>
+              <h2 className="detail__title">{item.title || 'Untitled'}</h2>
+              <div className="detail__meta">
+                {item.type && <span className="detail__pillType">{item.type}</span>}
+                {safeArr(item.category).map((c,i) => <span className="detail__pill" key={i}>{c}</span>)}
+                {safeArr(item.tags).length > 0 && <span>Tags: {safeArr(item.tags).join(', ')}</span>}
+              </div>
+              <div className="detail__grid">
+                <div className="detail__media">
+                  <img className="detail__img" src={(safeArr(item.fileURLs)[0] || item.thumbnailURL || '')} alt="" />
+                </div>
+                <div className="detail__body">
+                  {item.description || '—'}
+                  <div className="detail__backHint">Use ← Back to return to the list.</div>
+                </div>
+              </div>
+              <div className="detail__extras">
+                {Array.isArray(item.fileURLs) && item.fileURLs.length > 1 && (
+                  <>
+                    <h4 className="detail__sectionTitle">Files</h4>
+                    <div className="detail__filelist">
+                      {item.fileURLs.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <h4 className="detail__sectionTitle">Details</h4>
+                <table className="detail__table">
+                  <tbody>
+                    {item.uploader && (
+                      <tr>
+                        <th>Uploader:</th>
+                        <td>{item.uploader}</td>
+                      </tr>
+                    )}
+                    {item.createdAt && (
+                      <tr>
+                        <th>Created At:</th>
+                        <td>{(() => {
+                          try {
+                            const ts = item.createdAt;
+                            const d = ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+                            return isNaN(d?.getTime?.()) ? '—' : new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+                          } catch { return '—'; }
+                        })()}</td>
+                      </tr>
+                    )}
+                    {item.source && (
+                      <tr>
+                        <th>Source:</th>
+                        <td>
+                          <a href={item.source} target="_blank" rel="noopener noreferrer" style={{ color: '#fff', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                            {item.source}
+                          </a>
+                        </td>
+                      </tr>
+                    )}
+                    {Array.isArray(item.additionalInfo) && item.additionalInfo.length > 0 && (
+                      <tr>
+                        <th>Linked Resources:</th>
+                        <td>
+                          <div className="detail__links">
+                            {item.additionalInfo.map((u, i) => (
+                              <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {(() => {
+                      const known = new Set(['id','title','description','motivation','mood','category','type','tags','uploader','createdAt','source','additionalInfo','thumbnailURL','fileURLs']);
+                      const entries = Object.entries(item || {}).filter(([k,v]) => !known.has(k) && v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
+                      return entries.map(([k,v]) => (
+                        <tr key={k}>
+                          <th>{k}:</th>
+                          <td>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+              {/* Related items */}
+              <div className="detail__relatedWrap">
+                <h4 className="detail__relatedTitle">Similar items</h4>
+                {relLoading && <div>Loading…</div>}
+                {!relLoading && related.length === 0 && <div style={{opacity:.8}}>No similar items found.</div>}
+                {!relLoading && related.length > 0 && (
+                  <div className="detail__relatedList">
+                    {related.map((r) => (
+                      <div key={r.id} className="detail__card" onClick={() => onOpen?.(r.id)} role="button" tabIndex={0}
+                           onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); onOpen?.(r.id);} }}>
+                        <img className="detail__thumb" src={(Array.isArray(r.fileURLs) && r.fileURLs[0]) || r.thumbnailURL || ''} alt="" />
+                        <div className="detail__cardBody">
+                          <div className="detail__cardTitle">{r.title || 'Untitled'}</div>
+                          {r.type && <span className="detail__cardType">{r.type}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // --- Firebase (guard against re-init) ---
 const firebaseConfig = {

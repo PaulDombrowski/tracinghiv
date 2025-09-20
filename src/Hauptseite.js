@@ -1,277 +1,15 @@
-import Archive from './Archive';
 import React, { useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
-import { motion, AnimatePresence } from 'framer-motion';
-import RightTextComponent from './RightTextComponent';
-import HivModelStage from './HivModelStage';
+import TitleHeader from './TitleHeader';
+import CursorDot from './CursorDot';
+import StageColumns from './StageColumns';
 import RedMenuOverlay from './RedMenuOverlay';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, collection, getDocs, where, limit, query as fsQuery } from 'firebase/firestore';
-
-// Lokaler Worker (vorher einmal kopieren: cp node_modules/pdfjs-dist/build/pdf.worker.min.js public/)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.js`;
+import Archive, { ItemDetail } from './Archive';
 
 
 
-// --- Firebase (guard against re-init) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyDgxBvHfuv0izCJPwNwBd5Ou9brHzGBSqk",
-  authDomain: "hivarchive.firebaseapp.com",
-  projectId: "hivarchive",
-  storageBucket: "hivarchive.appspot.com",
-  messagingSenderId: "783300550035",
-  appId: "1:783300550035:web:87ecf7b4d901068a7c9c66",
-  measurementId: "G-3DESXXFKL1",
-};
-if (!getApps().length) initializeApp(firebaseConfig);
-const db = getFirestore();
-
-
-function ItemDetail({ id, onBack, onClose, onOpen }) {
-  const [item, setItem] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [related, setRelated] = React.useState([]);
-  const [relLoading, setRelLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, 'uploads', id));
-        if (alive) setItem(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-      } catch (e) {
-        console.error('Detail load error:', e);
-        if (alive) setItem(null);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [id]);
-
-  const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
-
-  // Load related items based on shared categories
-  React.useEffect(() => {
-    const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
-    let alive = true;
-    (async () => {
-      if (!item) return;
-      const cats = safeArr(item.category).filter(Boolean);
-      if (!cats.length) { setRelated([]); return; }
-      try {
-        setRelLoading(true);
-        const coll = collection(db, 'uploads');
-        // Query by any shared category; then filter/sort client-side
-        const q = fsQuery(coll, where('category', 'array-contains-any', cats), limit(10));
-        const snap = await getDocs(q);
-        const list = [];
-        snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-        // Exclude self, score by number of shared categories
-        const scored = list
-          .filter((d) => d.id !== item.id)
-          .map((d) => {
-            const dCats = safeArr(d.category).filter(Boolean);
-            const shared = dCats.filter((c) => cats.includes(c)).length;
-            return { ...d, __score: shared };
-          })
-          .sort((a, b) => b.__score - a.__score);
-        const top3 = scored.slice(0, 3);
-        if (alive) setRelated(top3);
-      } catch (e) {
-        console.error('Related load error:', e);
-        if (alive) setRelated([]);
-      } finally {
-        if (alive) setRelLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [item]);
-
-  return (
-    <div className="detail__wrap" role="region" aria-label="Item detail">
-      <style>{`
-        .detail__wrap { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
-        .detail__scroll {
-          position: fixed;
-          left: 0; right: 0;
-          top: calc(var(--hdrH,120px) + 76px);
-          bottom: 0;
-          z-index: 9; /* below RedMenu controls (z:10) */
-          overflow: auto;
-          -webkit-overflow-scrolling: touch;
-          pointer-events: auto;
-          padding: 0 clamp(10px, 2vw, 20px) 16px;
-        }
-        .detail__inner { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; pointer-events: auto; }
-        .detail__title { margin: 0 0 8px; font-size: clamp(20px, 6.4vw, 56px); line-height: 1.02; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow-wrap: normal; word-break: keep-all; word-spacing: .16em; }
-        @media (max-width: 560px) { .detail__title { white-space: normal; text-wrap: balance; line-height: 1.08; } }
-        ._titleLine { word-spacing: .18em; }
-        @media (max-width: 560px) { ._titleLine { } }
-        .detail__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; font-size: clamp(12px, 1.6vw, 16px); font-family: Arial, Helvetica, sans-serif; }
-        .detail__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
-        .detail__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
-        .detail__grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(12px, 2vw, 24px); align-items: start; }
-        .detail__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); }
-        .detail__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
-        .detail__backHint { margin-top: 12px; opacity: .8; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
-        .detail__extras { width: min(1200px, 92vw); margin: 16px auto 0; color: #fff; font-family: Arial, Helvetica, sans-serif; }
-        .detail__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; }
-        .detail__filelist { display: grid; gap: 6px; }
-        .detail__filelist a { color: #fff; text-decoration: underline; word-break: break-all; }
-        .detail__table { width: 100%; border-collapse: collapse; font-size: clamp(12px, 1.4vw, 14px); }
-        .detail__table th, .detail__table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.25); vertical-align: top; }
-        .detail__table th { text-align: left; font-weight: 800; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: .03em; white-space: nowrap; }
-        .detail__links { display: grid; gap: 6px; }
-        .detail__links a { color: #fff; text-decoration: underline; word-break: break-all; }
-        /* subtle grain overlay */
-        .detail__wrap::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 3px 3px; opacity: .35; mix-blend-mode: soft-light; }
-        /* media wrapper for vignette/tint */
-        .detail__media { position: relative; }
-        .detail__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%); mix-blend-mode: soft-light; animation: breathe 3.6s ease-in-out infinite; opacity: .9; border-radius: 12px; }
-        @keyframes breathe { 0%,100% { filter: saturate(1) contrast(1); } 50% { filter: saturate(1.08) contrast(1.05); } }
-        /* zebra table + subtle highlight */
-        .detail__table tr:nth-child(even) { background: rgba(255,255,255,0.04); }
-        .detail__table tr:hover { background: rgba(255,255,255,0.08); }
-        .detail__sectionTitle { border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
-        @media (max-width: 900px) { .detail__grid { grid-template-columns: 1fr; } }
-        .detail__relatedWrap { width: min(1200px, 92vw); margin: 40px auto 0; }
-        .detail__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
-        .detail__relatedList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .detail__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
-        .detail__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
-        .detail__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
-        .detail__cardBody { padding: 8px 10px; color: #fff; }
-        .detail__cardTitle { margin: 0 0 6px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(12px, 1.6vw, 16px); line-height: 1.2; text-transform: uppercase; letter-spacing: .04em; }
-        .detail__cardType { display:inline-block; padding:4px 8px; border-radius:999px; background:#fff; color:#cc0000; font-size:.72rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
-        @media (max-width: 900px) { .detail__relatedList { grid-template-columns: 1fr; } }
-      `}</style>
-
-      <div className="detail__scroll">
-        <div className="detail__inner">
-          {loading && <div>Loading…</div>}
-          {!loading && !item && <div>Not found.</div>}
-          {!loading && item && (
-            <>
-              <h2 className="detail__title">{item.title || 'Untitled'}</h2>
-              <div className="detail__meta">
-                {item.type && <span className="detail__pillType">{item.type}</span>}
-                {safeArr(item.category).map((c,i) => <span className="detail__pill" key={i}>{c}</span>)}
-                {safeArr(item.tags).length > 0 && <span>Tags: {safeArr(item.tags).join(', ')}</span>}
-              </div>
-              <div className="detail__grid">
-                <div className="detail__media">
-                  <img className="detail__img" src={(safeArr(item.fileURLs)[0] || item.thumbnailURL || '')} alt="" />
-                </div>
-                <div className="detail__body">
-                  {item.description || '—'}
-                  <div className="detail__backHint">Use ← Back to return to the list.</div>
-                </div>
-              </div>
-              <div className="detail__extras">
-                {Array.isArray(item.fileURLs) && item.fileURLs.length > 1 && (
-                  <>
-                    <h4 className="detail__sectionTitle">Files</h4>
-                    <div className="detail__filelist">
-                      {item.fileURLs.map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                <h4 className="detail__sectionTitle">Details</h4>
-                <table className="detail__table">
-                  <tbody>
-                    {item.uploader && (
-                      <tr>
-                        <th>Uploader:</th>
-                        <td>{item.uploader}</td>
-                      </tr>
-                    )}
-                    {item.createdAt && (
-                      <tr>
-                        <th>Created At:</th>
-                        <td>{(() => {
-                          try {
-                            const ts = item.createdAt;
-                            const d = ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
-                            return isNaN(d?.getTime?.()) ? '—' : new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
-                          } catch { return '—'; }
-                        })()}</td>
-                      </tr>
-                    )}
-                    {item.source && (
-                      <tr>
-                        <th>Source:</th>
-                        <td>
-                          <a href={item.source} target="_blank" rel="noopener noreferrer" style={{ color: '#fff', textDecoration: 'underline', wordBreak: 'break-all' }}>
-                            {item.source}
-                          </a>
-                        </td>
-                      </tr>
-                    )}
-                    {Array.isArray(item.additionalInfo) && item.additionalInfo.length > 0 && (
-                      <tr>
-                        <th>Linked Resources:</th>
-                        <td>
-                          <div className="detail__links">
-                            {item.additionalInfo.map((u, i) => (
-                              <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    {(() => {
-                      const known = new Set(['id','title','description','motivation','mood','category','type','tags','uploader','createdAt','source','additionalInfo','thumbnailURL','fileURLs']);
-                      const entries = Object.entries(item || {}).filter(([k,v]) => !known.has(k) && v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
-                      return entries.map(([k,v]) => (
-                        <tr key={k}>
-                          <th>{k}:</th>
-                          <td>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-              {/* Related items */}
-              <div className="detail__relatedWrap">
-                <h4 className="detail__relatedTitle">Similar items</h4>
-                {relLoading && <div>Loading…</div>}
-                {!relLoading && related.length === 0 && <div style={{opacity:.8}}>No similar items found.</div>}
-                {!relLoading && related.length > 0 && (
-                  <div className="detail__relatedList">
-                    {related.map((r) => (
-                      <div key={r.id} className="detail__card" onClick={() => onOpen?.(r.id)} role="button" tabIndex={0}
-                           onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); onOpen?.(r.id);} }}>
-                        <img className="detail__thumb" src={(Array.isArray(r.fileURLs) && r.fileURLs[0]) || r.thumbnailURL || ''} alt="" />
-                        <div className="detail__cardBody">
-                          <div className="detail__cardTitle">{r.title || 'Untitled'}</div>
-                          {r.type && <span className="detail__cardType">{r.type}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Hauptseite() {
-  const [pdf, setPdf] = useState(null);
-  const [totalPages, setTotalPages] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedArchiveItemId, setSelectedArchiveItemId] = useState(null);
-
-
   // --- MENU state & helpers ---
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -295,28 +33,81 @@ function Hauptseite() {
     Imprint: 'Legal & contact',
   };
   const [selectedMenu, setSelectedMenu] = useState(null);
-  const [titleText, setTitleText] = useState('TRACES OF HIV');
+  const [titleText, setTitleText] = useState('TRACES OF HIV ARCHIVE');
   const [glitchSet, setGlitchSet] = useState(new Set());
   const timeoutsRef = useRef([]);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
+  const lastScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
+  const scrollDirRef = useRef(1); // 1 = down, -1 = up
+  const hasScrolledRef = useRef(false);
 
   useEffect(() => {
-    const onMove = (e) => {
+    const lastTickRef = { t: 0 };
+    const tick = (strength = 2) => {
+      const now = performance.now();
+      if (now - lastTickRef.t < 70) return; // throttle to ~14 Hz
+      lastTickRef.t = now;
+      triggerGlitch(strength);
+    };
+
+    const onMouseMove = (e) => {
       const w = window.innerWidth || 1;
       const h = window.innerHeight || 1;
       mouseRef.current = { x: e.clientX / w, y: e.clientY / h };
       document.documentElement.style.setProperty('--mx', mouseRef.current.x);
       document.documentElement.style.setProperty('--my', mouseRef.current.y);
-      triggerGlitch();
+      tick(1);
     };
+
     const onScroll = () => {
-      triggerGlitch(1); // etwas sanfter bei Scroll
+      const y = window.scrollY || 0;
+      scrollDirRef.current = y >= lastScrollYRef.current ? 1 : -1;
+      lastScrollYRef.current = y;
+      hasScrolledRef.current = true;
+      document.body.classList.add('_scrolled');
+      tick(1);
     };
-    window.addEventListener('mousemove', onMove, { passive: true });
+
+    const onTouchStart = (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const t = e.touches[0];
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      mouseRef.current = { x: t.clientX / w, y: t.clientY / h };
+      document.documentElement.style.setProperty('--mx', mouseRef.current.x);
+      document.documentElement.style.setProperty('--my', mouseRef.current.y);
+      tick(1);
+    };
+    const onTouchMove = (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const t = e.touches[0];
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      mouseRef.current = { x: t.clientX / w, y: t.clientY / h };
+      document.documentElement.style.setProperty('--mx', mouseRef.current.x);
+      document.documentElement.style.setProperty('--my', mouseRef.current.y);
+      tick(1);
+    };
+
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('wheel', onScroll, { passive: true });
+    const onKeyScroll = (e) => {
+      const keys = ['ArrowUp','ArrowDown','PageUp','PageDown','Home','End','Spacebar',' '];
+      if (keys.includes(e.key)) tick(1);
+    };
+    window.addEventListener('keydown', onKeyScroll, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
     return () => {
-      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('wheel', onScroll);
+      window.removeEventListener('keydown', onKeyScroll);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
     };
@@ -328,17 +119,17 @@ function Hauptseite() {
       setTitleText(MENU_SENTENCES[selectedMenu]);
       triggerGlitch(3);
     } else {
-      setTitleText('TRACES OF HIV');
+      setTitleText('TRACES OF HIV ARCHIVE');
     }
   }, [selectedMenu]);
 
   const triggerGlitch = (strength = 2) => {
     const total = titleText.length;
-    const picks = Math.max(1, Math.floor(Math.random() * (strength + 2)));
+    const picks = Math.max(1, Math.floor(Math.random() * (strength + 3))); // slightly more activity
     const indices = new Set(glitchSet);
     for (let i = 0; i < picks; i++) {
       const idx = Math.floor(Math.random() * total);
-      if (titleText[idx] === ' ') continue; // Leerzeichen nicht glitchen
+      if (titleText[idx] === ' ') continue; // keep spaces intact
       indices.add(idx);
       const to = setTimeout(() => {
         setGlitchSet((prev) => {
@@ -346,297 +137,90 @@ function Hauptseite() {
           next.delete(idx);
           return next;
         });
-      }, 180 + Math.random() * 260);
+      }, 160 + Math.random() * 240); // even quicker decay
       timeoutsRef.current.push(to);
     }
     setGlitchSet(indices);
   };
 
-  const canvasRefs = useRef([]);
-  const pageWrapRefs = useRef([]);
-  const renderQueue = useRef(Promise.resolve());
-
-  const pdfContainerRef = useRef(null);
-  const textContainerRef = useRef(null);
-
-  // --- CUSTOM CURSOR (red by default; white when menu open) ---
-  const cursorRef = useRef(null);
+  // Reveal PDFs from bottom on downscroll (robust)
   useEffect(() => {
-    const dot = cursorRef.current;
-    if (!dot) return;
-    const move = (e) => {
-      const x = ('touches' in e) ? e.touches[0].clientX : e.clientX;
-      const y = ('touches' in e) ? e.touches[0].clientY : e.clientY;
-      dot.style.transform = `translate(${x}px, ${y}px)`;
+    const observeSet = new Set();
+
+    const hideInitial = () => {
+      document.querySelectorAll('._pdfWrap').forEach(el => el.classList.remove('_visible'));
     };
-    window.addEventListener('mousemove', move, { passive: true });
-    window.addEventListener('touchmove', move, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('touchmove', move);
-    };
-  }, []);
 
-  // --- PDF LADEN ---
-  useEffect(() => {
-    const url = `${process.env.PUBLIC_URL}/masti_upload_version-4.pdf`; // liegt in public/
-    const loadingTask = pdfjsLib.getDocument(url);
-
-    loadingTask.promise.then(
-      (loadedPdf) => {
-        setPdf(loadedPdf);
-        setTotalPages(loadedPdf.numPages);
-      },
-      (err) => console.error('Error loading PDF:', err)
-    );
-
-    return () => {
-      try { loadingTask.destroy?.(); } catch {}
-    };
-  }, []);
-
-  // --- RESPONSIVE: detect mobile/tablet ---
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 900px)');
-    const update = () => {
-      setIsMobile(mq.matches);
-    };
-    update();
-    mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
-    return () => {
-      mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update);
-    };
-  }, []);
-
-  // --- PDF SEITEN RENDERN ---
-  useEffect(() => {
-    if (menuOpen) return;
-    if (!pdf || totalPages === 0) return;
-
-    const root = pdfContainerRef.current;
-    if (!root) return;
-
-    const renderIfNeeded = (idx) => {
-      const canvas = canvasRefs.current[idx];
-      if (!canvas || canvas.dataset.rendered === '1') return;
-      const deviceScale = isMobile ? 1.1 : 1.5;
-      queueRenderPage(pdf, idx + 1, canvas, deviceScale).then(() => {
-        canvas.dataset.rendered = '1';
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const rootBottom = (entry.rootBounds && entry.rootBounds.bottom) || window.innerHeight;
+        const enteringFromBottom = entry.boundingClientRect.top >= rootBottom - Math.min(140, rootBottom * 0.2);
+        const scrollingDown = scrollDirRef.current === 1;
+        // Only after user scrolled at least once; reveal when scrolling down and either entering from bottom or sufficiently visible
+        if (hasScrolledRef.current && scrollingDown && (enteringFromBottom || entry.intersectionRatio > 0.22)) {
+          entry.target.classList.add('_visible');
+          entry.target.style.removeProperty('opacity');
+          entry.target.style.removeProperty('transform');
+          entry.target.style.removeProperty('filter');
+          io.unobserve(entry.target);
+          observeSet.delete(entry.target);
+          triggerGlitch(2);
+        }
       });
-    };
+    }, { threshold: [0, 0.12, 0.22, 0.5], rootMargin: '0px 0px -6% 0px' });
 
-    // Observe wrappers to render visible pages + small buffer
-    const items = pageWrapRefs.current.filter(Boolean);
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            const idx = Number(e.target.dataset.index);
-            renderIfNeeded(idx);
-            if (idx > 0) renderIfNeeded(idx - 1);
-            if (idx < totalPages - 1) renderIfNeeded(idx + 1);
-          }
-        });
-      },
-      { root, threshold: 0.12 }
-    );
-
-    items.forEach((el, i) => {
-      el.dataset.index = i;
+    const track = (el) => {
+      if (!el || observeSet.has(el)) return;
+      el.classList.remove('_visible'); // ensure hidden until reveal
       io.observe(el);
-    });
+      observeSet.add(el);
+    };
 
-    // Render first page eagerly for faster first paint
-    renderIfNeeded(0);
+    // Initial scan
+    hideInitial();
+    document.querySelectorAll('._pdfWrap').forEach(track);
 
-    return () => io.disconnect();
-  }, [pdf, totalPages, isMobile, menuOpen]);
+    // Re-scan a few times as PDFs mount lazily
+    const rescans = [220, 650, 1200, 2200];
+    const timers = rescans.map(t => setTimeout(() => {
+      document.querySelectorAll('._pdfWrap').forEach(track);
+    }, t));
 
-  const renderAllPages = (loadedPdf) => {
-    for (let num = 1; num <= loadedPdf.numPages; num++) {
-      const canvas = canvasRefs.current[num - 1];
-      if (canvas) queueRenderPage(loadedPdf, num, canvas);
-    }
-  };
-
-  const queueRenderPage = (loadedPdf, num, canvas, scale = 1.5) => {
-    renderQueue.current = renderQueue.current.then(() =>
-      renderPage(loadedPdf, num, canvas, scale)
-    );
-    return renderQueue.current;
-  };
-
-  const renderPage = (loadedPdf, num, canvas, scale = 1.5) => {
-    return new Promise((resolve, reject) => {
-      loadedPdf.getPage(num).then((page) => {
-        const viewport = page.getViewport({ scale });
-        const ctx = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        const renderContext = { canvasContext: ctx, viewport, background: 'transparent' };
-        const renderTask = page.render(renderContext);
-        renderTask.promise
-          .then(() => resolve())
-          .catch((error) => {
-            if (error?.name !== 'RenderingCancelledException') {
-              console.error('Rendering error:', error);
-              reject(error);
-            } else {
-              resolve();
-            }
-          });
+    // MutationObserver to catch dynamically added PDF nodes
+    const mo = new MutationObserver((muts) => {
+      muts.forEach(m => {
+        m.addedNodes && m.addedNodes.forEach((n) => {
+          if (!(n instanceof HTMLElement)) return;
+          if (n.classList && n.classList.contains('_pdfWrap')) track(n);
+          n.querySelectorAll && n.querySelectorAll('._pdfWrap').forEach(track);
+        });
       });
     });
-  };
-
-  // --- PARALLAX: rechter Text langsamer & SMOOTH (Lerp) ---
-  useEffect(() => {
-    const pdfEl = pdfContainerRef.current;
-    const textEl = textContainerRef.current;
-    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
-    if (!pdfEl || !textEl) return;
-    if (menuOpen) return;
-
-    if (isMobile) return; // disable parallax sync on mobile for independence
-
-    let desired = 0;
-    let current = 0;
-    const factor = 0.35; // <— weniger Bewegung = tiefere Ebene
-    const ease = 0.12;   // <— Glätte (0.08–0.18 angenehm)
-    let rafId;
-
-    const onScroll = () => {
-      desired = pdfEl.scrollTop * factor; // gleiche Richtung, langsamer
-      if (!rafId) rafId = requestAnimationFrame(tick);
-    };
-
-    const tick = () => {
-      const delta = desired - current;
-      current += delta * ease;
-      textEl.scrollTop = current;
-      if (Math.abs(delta) > 0.5) {
-        rafId = requestAnimationFrame(tick);
-      } else {
-        rafId = null;
-      }
-    };
-
-    pdfEl.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      pdfEl.removeEventListener('scroll', onScroll);
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [isMobile, menuOpen]);
-
-  // --- Trigger Title Glitch on inner scroll (PDF & Right Text) ---
-  useEffect(() => {
-    const pdfEl = pdfContainerRef.current;
-    const textEl = textContainerRef.current;
-    if (menuOpen) return;
-    if (!pdfEl && !textEl) return;
-
-    const onInnerScroll = () => triggerGlitch(2);
-
-    if (pdfEl) pdfEl.addEventListener('scroll', onInnerScroll, { passive: true });
-    if (textEl) textEl.addEventListener('scroll', onInnerScroll, { passive: true });
-    return () => {
-      if (pdfEl) pdfEl.removeEventListener('scroll', onInnerScroll);
-      if (textEl) textEl.removeEventListener('scroll', onInnerScroll);
-    };
-  }, [menuOpen]);
-  // --- FADE/SLIDE-IN je Seite via IntersectionObserver ---
-  useEffect(() => {
-    if (menuOpen) return;
-    const items = pageWrapRefs.current.filter(Boolean);
-    if (!items.length) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add('_visible');
-          }
-        });
-      },
-      { root: pdfContainerRef.current, threshold: 0.18 }
-    );
-
-    items.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [totalPages, menuOpen]);
-
-  // --- SUPER SMOOTH WHEEL-SCROLL für PDF-Container (rAF + Lerp) ---
-  useEffect(() => {
-    const pdfEl = pdfContainerRef.current;
-    if (!pdfEl) return;
-    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (menuOpen) return;
-    if (prefersReduced) return; // use native scrolling if user prefers reduced motion
-    if (isMobile) return; // Use native page scroll on mobile
-
-    let desired = pdfEl.scrollTop;
-    let current = pdfEl.scrollTop;
-    let rafId = null;
-
-    const ease = 0.14; // Glätte (0.10–0.18)
-
-    const clamp = (v, min, max) => (v < min ? min : v > max ? max : v);
-
-    const tick = () => {
-      const delta = desired - current;
-      current += delta * ease;
-      if (Math.abs(delta) < 0.4) {
-        current = desired;
-      }
-      pdfEl.scrollTop = current;
-      if (current !== desired) {
-        rafId = requestAnimationFrame(tick);
-      } else {
-        rafId = null;
-      }
-    };
-
-    const onWheel = (e) => {
-      // Trackpads liefern viele kleine Deltas, Mäuse größere – beide glätten
-      // Wir verhindern das native ruckelige Scrollen und übernehmen selbst
-      e.preventDefault();
-      const max = pdfEl.scrollHeight - pdfEl.clientHeight;
-      desired = clamp(desired + e.deltaY, 0, max);
-      if (!rafId) rafId = requestAnimationFrame(tick);
-    };
-
-    // Optional: Keyboard smoothen (Pfeile, PageUp/Down, Space)
-    const keyStep = () => Math.max(80, pdfEl.clientHeight * 0.8);
-    const onKeyDown = (e) => {
-      const max = pdfEl.scrollHeight - pdfEl.clientHeight;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault(); desired = clamp(desired + 60, 0, max);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault(); desired = clamp(desired - 60, 0, max);
-      } else if (e.key === 'PageDown') {
-        e.preventDefault(); desired = clamp(desired + keyStep(), 0, max);
-      } else if (e.key === 'PageUp') {
-        e.preventDefault(); desired = clamp(desired - keyStep(), 0, max);
-      } else if (e.key === ' ') {
-        e.preventDefault(); desired = clamp(desired + keyStep(), 0, max);
-      }
-      if (!rafId) rafId = requestAnimationFrame(tick);
-    };
-
-    // Hinweis: passive:false nötig, damit preventDefault auf Wheel wirkt
-    pdfEl.addEventListener('wheel', onWheel, { passive: false });
-    pdfEl.addEventListener('keydown', onKeyDown);
-    // Fokus sicherstellen, damit Keydown ankommt
-    pdfEl.tabIndex = 0;
+    mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      pdfEl.removeEventListener('wheel', onWheel, { passive: false });
-      pdfEl.removeEventListener('keydown', onKeyDown);
-      if (rafId) cancelAnimationFrame(rafId);
+      io.disconnect();
+      mo.disconnect();
+      timers.forEach(clearTimeout);
+      observeSet.clear();
     };
-  }, [isMobile, menuOpen]);
+  }, []);
+
+  // Auto-hide the small red scroll prompt after user scrolls or first PDF reveals
+  useEffect(() => {
+    const prompt = document.querySelector('._scrollMini');
+    if (!prompt) return;
+    const hide = () => prompt.classList.add('_hide');
+    const onScroll = () => hide();
+    const firstVisible = () => {
+      const anyVisible = document.querySelector('._pdfWrap._visible');
+      if (anyVisible) hide();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const iv = window.setInterval(firstVisible, 250);
+    return () => { window.removeEventListener('scroll', onScroll); window.clearInterval(iv); };
+  }, []);
 
   return (
     <div
@@ -658,12 +242,6 @@ function Hauptseite() {
     >
       {/* globale Styles */}
       <style>{`
-        /* Custom cursor dot (red default, white when menu open) */
-        ._useCustomCursor { cursor: none; }
-        ._cursorDot { position: fixed; z-index: 11; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); will-change: transform, background, box-shadow; transition: background 120ms ease; }
-        ._cursorDot._red { background: #ff0000; box-shadow: 0 0 12px rgba(255,0,0,.35); }
-        ._cursorDot._white { background: #ffffff; box-shadow: 0 0 14px rgba(255,255,255,.55); width: 12px; height: 12px; }
-        @media (hover: none) and (pointer: coarse) { ._useCustomCursor { cursor: auto; } ._cursorDot { display: none; } }
         /* RED FADE MENU OVERLAY */
         ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
         ._menuOverlay::before { content: ''; position: absolute; inset: 0; background: rgba(255,0,0,0.0); transition: background 260ms ease; }
@@ -725,19 +303,36 @@ function Hauptseite() {
         }
         @media (max-width: 1200px) { ._stageFrame { --stageScale: .45; } }
         @media (max-width: 900px)  { ._stageFrame { --stageScale: .34; } }
+
+
         ._noScroll::-webkit-scrollbar { display: none; }
         ._noScroll { -ms-overflow-style: none; scrollbar-width: none; }
 
-        ._pdfWrap { 
-          opacity: 0; 
-          transform: translateY(12px); 
-          transition: opacity 700ms cubic-bezier(.2,.8,.2,1), transform 900ms cubic-bezier(.2,.8,.2,1);
-          will-change: transform, opacity;
+        ._pdfWrap {
+          opacity: 0;
+          transform: translateY(46px) scale(.992);
+          filter: blur(2.1px);
+          transition: opacity 700ms cubic-bezier(.16,.84,.24,1), transform 780ms cubic-bezier(.16,.84,.24,1), filter 620ms cubic-bezier(.16,.84,.24,1);
+          will-change: transform, opacity, filter;
         }
-        ._pdfWrap._visible {
+        /* Prevent premature visibility before any scroll */
+        ._pdfWrap._visible { opacity: 0; }
+
+        /* Reveal only after first user scroll */
+        body._scrolled ._pdfWrap._visible {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateY(0) scale(1);
+          filter: blur(0px);
         }
+        ._scrollMini {
+          position: fixed; left: 50%; bottom: clamp(10px, 3.6vh, 32px); transform: translateX(-50%);
+          z-index: 6; pointer-events: none; font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+          color: #ff0000; opacity: .92; display: grid; place-items: center; gap: 6px;
+          animation: _hintFloat 1.6s ease-in-out infinite;
+        }
+        ._scrollMini._hide { opacity: 0; transition: opacity .28s ease; }
+        ._scrollMini ._chev { width: 12px; height: 12px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+        @keyframes _hintFloat { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 5px); } }
         ._pdfWrap:hover {
           transform: translateY(-2px) scale(1.002) rotateX(0deg) !important;
           transition-duration: 300ms;
@@ -751,41 +346,6 @@ function Hauptseite() {
           background: transparent;
         }
 
-        /* FANCY HEADER TITLE */
-        :root { --hdrH: clamp(72px, 12vh, 160px); }
-        ._pageHeader {
-          position: fixed; top: 0; left: 0; right: 0; height: var(--hdrH);
-          z-index: 10; pointer-events: none;
-          display: grid; place-items: center; text-align: center;
-          mix-blend-mode: normal;
-        }
-        ._titleLine {
-          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
-          font-weight: 900;
-          letter-spacing: clamp(2px, 0.6vw, 12px);
-          line-height: 0.95;
-          font-size: clamp(28px, 8vw, 120px);
-          text-transform: uppercase;
-          color: #ff0000; /* SOLID RED, ALWAYS VISIBLE */
-          text-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 0 14px rgba(255,0,0,0.18); /* subtle depth */
-          user-select: none;
-          white-space: nowrap;
-        }
-        @media (max-width: 560px) { ._titleLine { white-space: normal; text-wrap: balance; line-height: 1.06; } }
-        ._titleLetter {
-          display: inline-block;
-          transform: translateZ(0);
-          transition: transform .08s ease;
-        }
-        ._titleLetter._glitch {
-          font-family: 'Times New Roman', Georgia, 'Courier New', 'Comic Sans MS', cursive, serif !important;
-          font-style: italic;
-          transform: translateY(-2px) rotateZ(-2deg) scale(1.04);
-          text-shadow: 0 0 0 rgba(0,0,0,0), 0 0 22px rgba(147,112,219,0.25), 0 0 18px rgba(255,0,0,0.25);
-        }
-        ._pageHeader:hover ._titleLine { filter: drop-shadow(0 8px 26px rgba(255,0,0,0.35)) drop-shadow(0 0 36px rgba(147,112,219,0.32)); }
-
-        /* Tablet: Panel etwas schmaler */
 
         @media (max-width: 1200px) and (min-width: 901px) {
           ._rightText {
@@ -807,10 +367,6 @@ function Hauptseite() {
             padding: 12px 0 12px;
             gap: 12px;
           }
-
-          /* Canvas wrapper & canvas full width */
-          ._pdfWrap { opacity: 1; transform: none; }
-          ._pdfWrap:hover { transform: none !important; }
 
           /* Right text is not split on mobile; use bottom sheet instead */
           ._rightText { display: none; }
@@ -878,18 +434,18 @@ function Hauptseite() {
           /* Hide custom scrollbars if any */
           ._noScroll { scrollbar-width: thin; }
         }
+
       `}</style>
 
       {/* INTERAKTIVER HEADER-TITEL */}
-      <header className="_pageHeader" aria-hidden>
-        <div className="_titleLine">
-          {titleText.split('').map((ch, i) => (
-            <span key={i} className={glitchSet.has(i) ? '_titleLetter _glitch' : '_titleLetter'}>
-              {ch}
-            </span>
-          ))}
-        </div>
-      </header>
+      <TitleHeader titleText={titleText} glitchSet={glitchSet} />
+
+      {/* Minimal red scroll prompt */}
+      <div className="_scrollMini" aria-hidden>
+        <div className="_chev" />
+        <div>scroll to reveal</div>
+      </div>
+
 
       {/* Fullpage Menu Overlay (separate component) */}
       <RedMenuOverlay
@@ -909,8 +465,9 @@ function Hauptseite() {
         onOpenArchiveItem={(id) => { setSelectedMenu('Archive'); setSelectedArchiveItemId(id); }}
       />
 
-      {/* Custom Cursor Dot (white when menu is open) */}
-      <div ref={cursorRef} className={`_cursorDot ${menuOpen ? '_white' : '_red'}`} aria-hidden />
+      {/* Custom Cursor Dot (white when menu open) */}
+      <CursorDot white={menuOpen} />
+
 
       {/* Bottom-left floating red menu button (hidden when menu is open) */}
       {!menuOpen && (
@@ -928,151 +485,7 @@ function Hauptseite() {
         </button>
       )}
 
-      {/* 3D Model Overlay – full-screen, no CSS classes, over everything */}
-      <div
-        aria-hidden
-        style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }}
-      >
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <HivModelStage rightBias={1.8} />
-        </div>
-      </div>
-
-      {/* PDF-Container & Rechte Textspalte: AnimatePresence for smooth fade in/out */}
-      <AnimatePresence mode="wait">
-        {/* PDF-Container */}
-        {!menuOpen && (
-          <motion.div
-            key="pdf"
-            ref={pdfContainerRef}
-            className="_noScroll _surface _pdf"
-            style={{
-              flex: 1,
-              zIndex: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              height: 'calc(100vh - var(--hdrH, 120px))',
-              marginTop: 'var(--hdrH, 120px)',
-              overflowY: 'scroll',
-              overflowX: 'visible',
-              perspective: '1000px',
-              padding: '0 16px 24px',
-              gap: 20,
-              scrollBehavior: 'auto',      // native smooth für programmatic, Wheel bleibt rAF-smooth via Parallax-Sync
-              overscrollBehavior: 'contain',
-              scrollbarGutter: 'stable',
-              outline: 'none',
-            }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ ease: 'easeOut', duration: 0.5 }}
-          >
-            {Array.from({ length: totalPages }, (_, i) => (
-              <div
-                key={i}
-                ref={(el) => (pageWrapRefs.current[i] = el)}
-                className="_pdfWrap"
-                data-index={i}
-                style={{
-                  maxWidth: '90%',
-                  transformStyle: 'preserve-3d',
-                  // subtile alternierende 3D-Neigung
-                  rotate: 0,
-                }}
-              >
-                <canvas
-                  ref={(el) => (canvasRefs.current[i] = el)}
-                  data-rendered=""
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    height: 'auto',
-                    backgroundColor: 'transparent',
-                    transform: 'translateZ(0)',
-                    transition: 'transform 900ms cubic-bezier(.2,.8,.2,1), opacity 700ms ease, box-shadow 400ms ease',
-                    boxShadow: '0 8px 18px rgba(0,0,0,0.12), 0 0 16px rgba(147,112,219,0.35)',
-                    opacity: 0.82,
-                    willChange: 'transform',
-                  }}
-                />
-              </div>
-            ))}
-          </motion.div>
-        )}
-
-      {isMobile && (
-        <>
-          <button
-            type="button"
-            className="_fab"
-            onClick={() => setSheetOpen(true)}
-            aria-controls="archive-sheet"
-            aria-expanded={sheetOpen}
-          >
-            Archive
-          </button>
-
-          <div
-            className={`_sheetBackdrop ${sheetOpen ? '_open' : ''}`}
-            onClick={() => setSheetOpen(false)}
-            aria-hidden
-          />
-
-          <div
-            id="archive-sheet"
-            className={`_sheet ${sheetOpen ? '_open' : ''}`}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Archiv und Text"
-          >
-            <div className="_sheetHeader">
-              <h3 className="_sheetTitle">Archive · Traces of HIV</h3>
-              <button type="button" className="_sheetClose" onClick={() => setSheetOpen(false)}>Schließen</button>
-            </div>
-            <div className="_sheetBody">
-              <RightTextComponent />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Rechte Textspalte: langsamer Parallax-Scroll */}
-      {!menuOpen && (
-        <motion.div
-          key="righttext"
-          ref={textContainerRef}
-          className="_noScroll _rightText _surface"
-          style={{
-            flexBasis: '340px',
-            height: 'calc(100vh - var(--hdrH, 120px))',
-            marginTop: 'var(--hdrH, 120px)',
-            overflowY: 'scroll',
-            overflowX: 'visible',
-            color: '#9370DB', // flieder
-            fontSize: 12,
-            lineHeight: 1.55,
-            padding: '14px 16px',
-            textAlign: 'right', // overridden to left on mobile via CSS
-            zIndex: 4,
-            position: 'relative',
-            transform: 'rotateY(28deg)',
-            transformStyle: 'preserve-3d',
-            scrollBehavior: 'auto',
-            overscrollBehavior: 'contain',
-            scrollbarGutter: 'stable',
-          }}
-          initial={{ opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 12 }}
-          transition={{ ease: 'easeOut', duration: 0.45, delay: 0.06 }}
-        >
-          <RightTextComponent />
-        </motion.div>
-      )}
-      </AnimatePresence>
-
+      <StageColumns menuOpen={menuOpen} />
       {/* ARCHIVE on red menu layer */}
       {menuOpen && selectedMenu === 'Archive' && (
         !selectedArchiveItemId ? (
