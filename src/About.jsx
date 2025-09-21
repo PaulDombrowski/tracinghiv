@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function About() {
   return (
-    <section className="aboutFancy" aria-label="About — HIV/AIDS LEGACY">
+    <section className="aboutFancy" aria-label="About — Traces of HIV">
       <style>{`
         .aboutFancy { position: relative; }
         /* Layout */
@@ -16,25 +16,39 @@ export default function About() {
         /* Title */
         .aboutTitle {
           margin: 0;
+          display: grid;
+          gap: clamp(6px, 1.6vw, 18px);
           font-family: 'Arial Black', Arial, Helvetica, sans-serif;
           font-weight: 900;
-          font-size: clamp(22px, 6vw, 64px);
-          letter-spacing: .04em;
+          text-transform: uppercase;
           color: #fff;
-          text-transform: none;
-          line-height: .96;
-          word-spacing: .16em;
         }
-        .aboutKicker { color: #ffffff; font-size: .65em; letter-spacing: .08em; }
+        .aboutTitleLine {
+          font-size: clamp(36px, 7.4vw, 96px);
+          letter-spacing: .08em;
+          line-height: .88;
+        }
+        .aboutSubtitle {
+          font-size: clamp(22px, 4.8vw, 58px);
+          letter-spacing: .16em;
+          line-height: .92;
+          color: rgba(255,255,255,0.82);
+        }
+        .aboutMeta {
+          font-size: clamp(14px, 2.2vw, 24px);
+          letter-spacing: .22em;
+          color: rgba(255,255,255,0.75);
+        }
 
         /* Flowing multi‑column body that doesn’t feel blocky */
         .aboutBody {
-          column-count: 2;
+          column-count: 1;
+          max-width: min(960px, 100%);
           column-gap: clamp(18px, 3vw, 36px);
           column-fill: balance;
         }
-        @media (max-width: 980px) {
-          .aboutBody { column-count: 1; }
+        @media (min-width: 1100px) {
+          .aboutBody { column-count: 2; }
         }
 
         /* Paragraph styling: airy, rhythmic, with gentle micro‑motion on hover */
@@ -43,9 +57,9 @@ export default function About() {
           margin: 0 0 1.1em 0;
           font-family: 'Arial Black', Arial, Helvetica, sans-serif; /* requested */
           color: #ffffff;
-          font-size: clamp(13px, 1.7vw, 18px);
-          line-height: 1.45;
-          letter-spacing: .01em;
+          font-size: clamp(16px, 2.6vw, 24px);
+          line-height: 1.58;
+          letter-spacing: .015em;
           text-wrap: pretty;
           text-align: left;
           transition: transform .18s ease;
@@ -53,7 +67,7 @@ export default function About() {
           -webkit-hyphens: auto;
           -ms-hyphens: auto;
         }
-        .aboutP:hover { transform: translateY(-2px); }
+        .aboutP:hover { transform: translateY(-3px); }
 
         /* Emphasis in white, bold */
         .aboutP strong {
@@ -66,39 +80,52 @@ export default function About() {
           float: left;
           font-family: 'Arial Black', Arial, Helvetica, sans-serif;
           font-weight: 900;
-          font-size: 3.2em;
-          line-height: .85;
-          padding: .04em .12em 0 0;
+          font-size: 3.8em;
+          line-height: .84;
+          padding: .02em .14em 0 0;
           color: #ffffff;
         }
 
-        .aboutRule { height: 1px; background: rgba(255,255,255,.9); opacity: .9; margin: 6px 0 8px; }
+        .aboutRule {
+          height: 1.5px;
+          background: rgba(255,255,255,.92);
+          opacity: .92;
+          margin: clamp(14px, 3vw, 28px) 0 clamp(30px, 6vw, 52px);
+        }
 
-        .aboutPull { margin: .8em 0 1.2em; padding: 10px 12px; border: 2px solid rgba(255,255,255,1); border-radius: 10px; color: #ffffff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-weight: 900; letter-spacing: .02em; line-height: 1.2; background: transparent; box-shadow: none; }
+        .aboutPull {
+          margin: 1.4em 0 0;
+          padding: 12px 16px;
+          border: 2px solid rgba(255,255,255,0.92);
+          border-radius: 12px;
+          color: #ffffff;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-weight: 900;
+          letter-spacing: .16em;
+          line-height: 1.26;
+          background: rgba(255,255,255,0.06);
+          text-transform: uppercase;
+        }
       `}</style>
 
       <div className="aboutWrap">
         <h2 className="aboutTitle">
-          HIV/AIDS LEGACY <span className="aboutKicker">— ARCHIVING DIGITAL TRACES</span>
+          <span className="aboutTitleLine">Traces of HIV</span>
+          <span className="aboutSubtitle">Archive for Viral Memory</span>
+          <span className="aboutMeta">Elias Capelle · Paul Dombrowski</span>
         </h2>
         <div className="aboutRule" />
 
         <div className="aboutBody">
-          <p className="aboutP"><strong>HIV/AIDS LEGACY: ARCHIVING DIGITAL TRACES (Attempt #1)</strong> is an approach towards making the discursive expansion of HIV and AIDS history in the digital realm more tangible. How can known and unknown historical traces of HIV and AIDS be tracked online? How do digital media platforms, social networks, and user communication contribute to the historicization of HIV and AIDS? This open archive collects and documents digital references to the reception of HIV and AIDS, extending traditional archival approaches from physical and material spaces into the digital. <strong>HIV/AIDS LEGACY</strong> also aims to address the ongoing social impact of HIV and AIDS and question canonical forms of historiography and archiving.</p>
+          <p className="aboutP"><strong>Traces of HIV</strong> behaves like a working score for viral memory. We read residues in caches, classifieds, livestreams, club flyers, memorial threads. Each artefact is handled as material that still vibrates, a signal carrying the entanglement of care, surveillance, activism, and desire.</p>
 
-          <p className="aboutP">The archive is a first step towards rethinking the collectivization processes of memories and translating them into communicative social practices in order to create a more differentiated understanding of HIV and AIDS. The phrase <strong>“Attempt #1”</strong> emphasizes the open and potential nature of this archive. It illustrates a digital transformation of an open archive from below. In doing so, it does not claim to be comprehensive. Rather, it should be understood as a space of opportunity to generate a different perception of HIV/AIDS history and contribute to the preservation of this history in a digital form. It is an artistic-scientific endeavor aimed at expanding and reshaping archival strategies of collecting and organizing.</p>
+          <p className="aboutP">The archive advances through rehearsals rather than completions. Entries arrive as annotations, glitches, drafts, or echoes that refuse closure. We stage them so that research, nightlife, mutual aid and policy language remain in friction, showing how knowledge about HIV is continually rehearsed in public and clandestine spaces alike.</p>
 
-          <p className="aboutP">Focusing on the notion of collective memory as ascending from our understandings of collectivity and community as well as collectivizing processes, this first attempt aims to center the emotional and affective traces of an HIV/AIDS history and shed light on archival strategies as a social and communicative practice.</p>
+          <p className="aboutP">Our method borrows from performance studies, queer archival practices, and media forensics. Context is written with attentiveness and doubt: How do lines of code carry the violence of legislation? Where does intimacy slip through official historiography? Which bodies become metadata once platforms deprecate their architecture?</p>
 
-          <div className="aboutPull">COLLECTIVIZING MEMORY — When we talk about collective memory, we are also talking about identity or identities. The collective memory of a community is filled with memories of shared events, stories, and feelings of the people in that community. It is the invisible space in which we remember what has shaped them as a group—whether joy or pain, achievements or losses.</div>
+          <p className="aboutP">You are invited to extend the score—upload documentation, rumours, protest ephemera, legal fragments, whispered instructions. Each contribution retunes the archive and resists any single authoritative narrative of the HIV/AIDS crisis.</p>
 
-          <p className="aboutP">In order to keep these memories alive, artifacts and testimonies of the past are needed. On the other hand, we need active forms of storytelling, cultural practices that enable us to keep them alive. Memories do not stand for themselves but generate knowledge about ourselves—a knowledge that we do not carry alone but together with many, passed on to the next generation, a living echo of the past that resounds into the future.</p>
-
-          <p className="aboutP">At this point, however, I would like to take a step back to where memories are formed. Collective memory appears to be the place where these memories are present, where they are stored. But what does the process of filing look like? I am asking here about the process of collectivizing memories. Two levels become visible. Firstly, that of shared experience. The experience is collectivized by the fact that it happens to a group as a whole. Individual experiences come together to form a collective experience. Here, experiences of oppression, trauma, but also of liberation and achievement are perceived as shared when they take place on the basis of certain characteristics of the group.</p>
-
-          <p className="aboutP">On a second level, the process of collectivization becomes visible through collecting and preserving as well as actively keeping alive. Individual stories are collectivized because they are connected to an event, to an experience of many. The individual experiences and stories construct the foundation of the collective memory. Through the process of collectivizing memories, connections are made between an event and the real emotional and affective effects of this event on the members of a group. The collectivization process is therefore also a process of acknowledging/recognizing commonality. Through it, the collective memory can be shaped and, if necessary, reshaped.</p>
-
-          <p className="aboutP"><strong>HIV/AIDS LEGACY</strong> not only attempts to preserve a history and maintain a collective memory; it is also about expanding it and questioning our identity by collectivizing new, possibly previously hidden memories and traces. Because it is a participatory open archive, new affiliations to HIV/AIDS history are discussed with the help of the stored digital traces, and the collective memory is reformulated and expanded by the users. This enables the genesis of new associations and can further develop a practice of solidarity and emancipation.</p>
+          <div className="aboutPull">ARCHIVE AS CONTINUOUS CHOREOGRAPHY.</div>
         </div>
       </div>
     </section>

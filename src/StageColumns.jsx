@@ -53,10 +53,15 @@ export default function StageColumns({ menuOpen, pdfOn }) {
 
     const renderIfNeeded = (idx) => {
       const canvas = canvasRefs.current[idx];
-      if (!canvas || canvas.dataset.rendered === '1') return;
+      if (!canvas) return;
+      const state = canvas.dataset.rendered;
+      if (state === '1' || state === 'loading') return;
+      canvas.dataset.rendered = 'loading';
       const deviceScale = isMobile ? 1.1 : 1.5;
       queueRenderPage(pdf, idx + 1, canvas, deviceScale).then(() => {
         canvas.dataset.rendered = '1';
+      }).catch(() => {
+        canvas.dataset.rendered = '';
       });
     };
 
@@ -200,6 +205,10 @@ export default function StageColumns({ menuOpen, pdfOn }) {
     if (!pdfOn) setSheetOpen(false);
   }, [pdfOn]);
 
+  useEffect(() => {
+    if (menuOpen) setSheetOpen(false);
+  }, [menuOpen]);
+
   return (
     <>
       {/* 3D Overlay */}
@@ -279,7 +288,7 @@ export default function StageColumns({ menuOpen, pdfOn }) {
       </AnimatePresence>
 
       {/* Mobile Bottom Sheet */}
-      {isMobile && pdfOn && (
+      {isMobile && pdfOn && !menuOpen && (
         <>
           <button
             type="button"
@@ -288,14 +297,14 @@ export default function StageColumns({ menuOpen, pdfOn }) {
             aria-controls="archive-sheet"
             aria-expanded={sheetOpen}
           >
-            Archive
+            Bibliographies
           </button>
 
           <div className={`_sheetBackdrop ${sheetOpen ? '_open' : ''}`} onClick={() => setSheetOpen(false)} aria-hidden />
-          <div id="archive-sheet" className={`_sheet ${sheetOpen ? '_open' : ''}`} role="dialog" aria-modal="true" aria-label="Archiv und Text">
+          <div id="archive-sheet" className={`_sheet ${sheetOpen ? '_open' : ''}`} role="dialog" aria-modal="true" aria-label="Bibliographies and text">
             <div className="_sheetHeader">
-              <h3 className="_sheetTitle">Archive · Traces of HIV</h3>
-              <button type="button" className="_sheetClose" onClick={() => setSheetOpen(false)}>Schließen</button>
+              <h3 className="_sheetTitle">Bibliographies · Traces of HIV</h3>
+              <button type="button" className="_sheetClose" onClick={() => setSheetOpen(false)}>Close</button>
             </div>
             <div className="_sheetBody">
               <RightTextComponent />

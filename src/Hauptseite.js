@@ -424,16 +424,40 @@ function Hauptseite() {
           /* Floating action button to open the archive sheet */
           ._fab {
             position: fixed;
-            right: 16px;
-            bottom: 16px;
-            z-index: 6;
-            border: 1px solid rgba(0,0,0,.8);
-            background: #fff;
-            padding: 10px 14px;
+            left: 50%;
+            bottom: clamp(18px, 5vw, 28px);
+            transform: translateX(-50%);
+            z-index: 8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(6px, 1.8vw, 9px) clamp(16px, 6vw, 30px);
             border-radius: 999px;
-            font-size: 14px;
-            box-shadow: 0 10px 28px rgba(0,0,0,.18);
+            border: 1.6px solid rgba(255,0,0,0.78);
+            background: rgba(255,255,255,0.5);
+            color: #ff0000;
+            font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+            font-weight: 900;
+            font-size: clamp(9px, 2.2vw, 12px);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 12px 24px rgba(255,0,0,0.12);
+            overflow: hidden;
+            transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, border-color .22s ease, background .22s ease;
           }
+          ._fab::before {
+            content: '';
+            position: absolute;
+            inset: -25%;
+            background: radial-gradient(120% 120% at 30% 30%, rgba(255,80,80,0.32) 0%, rgba(255,0,0,0.12) 55%, rgba(255,0,0,0) 100%);
+            opacity: 0;
+            transition: opacity .28s ease;
+            pointer-events: none;
+          }
+          ._fab:hover::before { opacity: 1; }
+          ._fab:hover { transform: translateX(-50%) translateY(-2px) scale(1.015); box-shadow: 0 22px 42px rgba(255,0,0,0.24); }
+          ._fab:active { transform: translateX(-50%) translateY(1px) scale(0.985); box-shadow: 0 12px 24px rgba(255,0,0,0.2); border-color: rgba(255,0,0,0.75); }
 
           /* Bottom sheet + backdrop */
           ._sheetBackdrop {
@@ -475,8 +499,9 @@ function Hauptseite() {
             padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.08);
           }
           ._sheetBody { flex: 1; overflow-y: auto; padding: 12px 16px; }
-          ._sheetTitle { margin: 0; font-size: 16px; font-weight: 700; }
+          ._sheetTitle { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
           ._sheetClose { appearance: none; border: 1px solid rgba(0,0,0,.6); background: #fff; padding: 6px 10px; border-radius: 999px; }
+          ._sheetBody { font-size: clamp(12px, 3.2vw, 15px); line-height: 1.58; }
 
           /* Links slightly darker red on mobile */
           ._rightText a { color: #c00000; }
