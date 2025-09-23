@@ -264,7 +264,7 @@ export default function RedMenuOverlay({ open, onClose, items = [], selectedKey,
           <div key={selectedKey} className="_scrollRegion" onMouseDown={(e) => e.stopPropagation()}>
             <div className="_contentWrap">
               <div className="_contentInner">
-                {selectedKey !== 'Shuffle' && selectedKey !== 'About' && (
+                {selectedKey !== 'Shuffle' && selectedKey !== 'About' && selectedKey !== 'Upload' && selectedKey !== 'Imprint' && (
                   <h2 className="_contentTitle">{sentences[selectedKey] || selectedKey}</h2>
                 )}
                 <div className="_contentBody">

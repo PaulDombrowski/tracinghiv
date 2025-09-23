@@ -76,6 +76,7 @@ export default function Upload() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSuccess(false);
     if (!canSubmit) { setError('Please fill in all required fields.'); return; }
     setError(null);
     setBusy(true);
@@ -134,50 +135,197 @@ export default function Upload() {
     <section>
       {/* scoped styles to match red overlay aesthetics */}
       <style>{`
-        .u_intro { margin: 0 auto 18px; width: min(1200px, 92vw); color: #fff; font-family: Arial, Helvetica, sans-serif; }
-        .u_h2 { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(22px, 6vw, 44px); line-height: 1.02; letter-spacing: .04em; margin: 0 0 10px; text-transform: none; word-spacing: .16em; }
-        .u_p { font-size: clamp(14px, 2.2vw, 18px); line-height: 1.6; margin: 0 0 10px; }
-        .u_p + .u_p { margin-top: 6px; }
-        .u_wrap { width: min(1200px, 92vw); margin: 0 auto; color: #fff; font-family: Arial, Helvetica, sans-serif; }
-        .u_title { font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(18px, 3.4vw, 28px); margin: 0 0 12px; letter-spacing: .04em; word-spacing: .16em; }
-        .u_form { display: grid; gap: 14px; }
-        .u_row { display: grid; gap: 8px; }
-        .u_row label { font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: .06em; }
-        .u_req { color: #fff; background:#cc0000; padding: 0 6px; border-radius: 6px; margin-left: 6px; font-size: 10px; }
-        .u_input, .u_textarea, .u_select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.92); background: rgba(255,255,255,.12); color: #fff; outline: none; transition: box-shadow .2s ease, background .2s ease, border-color .2s ease, transform .2s ease; }
-        .u_input::placeholder, .u_textarea::placeholder { color: rgba(255,255,255,.85); }
-        .u_input:focus, .u_textarea:focus, .u_select:focus { background: rgba(255,255,255,.2); box-shadow: 0 0 0 6px rgba(255,255,255,.18); border-color: #fff; transform: translateY(-1px); }
-        .u_textarea { min-height: 96px; resize: vertical; }
-        .u_help { font-size: 12px; opacity: .9; }
-        .u_pills { display: flex; flex-wrap: wrap; gap: 8px; }
-        .u_pill { display: inline-block; padding: 8px 12px; border-radius: 999px; border: 2px solid rgba(255,255,255,.92); background: transparent; color: #fff; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: 12px; cursor: pointer; user-select:none; transition: transform .18s ease, background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
-        .u_pill:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.18); }
-        .u_pill._active { background: #ffffff; color: #cc0000; border-color: #ffffff; }
-        .u_files { display: grid; gap: 8px; }
-        .u_btnRow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .u_btn { background: rgba(255,255,255,0.96); color: #cc0000; border: none; border-radius: 999px; padding: 10px 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; box-shadow: 0 8px 18px rgba(0,0,0,0.18); transition: transform .18s ease, filter .18s ease; }
-        .u_btn:hover { filter: brightness(.96); transform: translateY(-1px); }
-        .u_btn:active { transform: translateY(0); }
-        .u_btn._ghost { background: rgba(255,255,255,0.85); }
-        .u_msg { padding: 10px 12px; border-radius: 12px; font-weight: 700; }
-        .u_msg._error { background: rgba(0,0,0,.2); border: 2px solid #fff; }
-        .u_msg._ok { background: rgba(255,255,255,.92); color: #cc0000; }
-        .u_grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        @media (max-width: 760px){ .u_grid2 { grid-template-columns: 1fr; } }
-        @media (max-width: 760px){
-          .u_intro { padding: 0 2px; }
+        .u_wrap {
+          width: 100%;
+          max-width: 960px;
+          margin: 0 auto;
+          padding: 0 clamp(18px, 6vw, 48px);
+          box-sizing: border-box;
+          color: #fff;
+          font-family: Arial, Helvetica, sans-serif;
+          display: grid;
+          gap: clamp(28px, 5vw, 48px);
+        }
+        .u_intro {
+          display: grid;
+          gap: clamp(12px, 2.4vw, 22px);
+          max-width: 100%;
+        }
+        .u_introTitle {
+          margin: 0;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-size: clamp(22px, 4.4vw, 42px);
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .u_p {
+          margin: 0;
+          font-size: clamp(15px, 2.4vw, 22px);
+          line-height: 1.62;
+          text-wrap: pretty;
+        }
+        .u_p + .u_p {
+          margin-top: clamp(10px, 2vw, 18px);
+        }
+        .u_title {
+          margin: 0;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-size: clamp(22px, 3.6vw, 30px);
+          letter-spacing: .1em;
+          text-transform: uppercase;
+        }
+        .u_form {
+          display: grid;
+          gap: clamp(18px, 3vw, 26px);
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .u_row {
+          display: grid;
+          gap: 10px;
+        }
+        .u_row label {
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          text-transform: uppercase;
+          font-size: 12px;
+          letter-spacing: .1em;
+        }
+        .u_req {
+          color: #fff;
+          background: #cc0000;
+          padding: 0 6px;
+          border-radius: 999px;
+          margin-left: 8px;
+          font-size: 10px;
+          letter-spacing: .08em;
+        }
+        .u_input, .u_textarea, .u_select {
+          width: 100%;
+          padding: 14px 18px;
+          border-radius: 20px;
+          border: 2px solid rgba(255,255,255,0.78);
+          background: rgba(255,255,255,0.1);
+          color: #fff;
+          outline: none;
+          transition: border-color .22s ease, background .22s ease, box-shadow .22s ease, transform .22s ease;
+          box-sizing: border-box;
+        }
+        .u_input::placeholder, .u_textarea::placeholder {
+          color: rgba(255,255,255,0.75);
+        }
+        .u_input:focus, .u_textarea:focus, .u_select:focus {
+          background: rgba(255,255,255,0.18);
+          border-color: #ffffff;
+          box-shadow: 0 0 0 6px rgba(255,255,255,0.16);
+          transform: translateY(-1px);
+        }
+        .u_select {
+          appearance: none;
+          background-image: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+        }
+        .u_textarea {
+          min-height: 120px;
+          resize: vertical;
+        }
+        .u_pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .u_pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 2px solid rgba(255,255,255,0.88);
+          background: transparent;
+          color: #fff;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-size: 11px;
+          letter-spacing: .08em;
+          cursor: pointer;
+          user-select: none;
+          transition: transform .18s ease, background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+          max-width: 100%;
+          text-align: center;
+          white-space: normal;
+        }
+        .u_pill:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 24px rgba(0,0,0,0.24);
+        }
+        .u_pill._active {
+          background: #ffffff;
+          color: #cc0000;
+          border-color: #ffffff;
+        }
+        .u_files {
+          display: grid;
+          gap: 8px;
+        }
+        .u_help {
+          font-size: 12px;
+          opacity: .86;
+          letter-spacing: .04em;
+        }
+        .u_btnRow {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .u_btn {
+          background: rgba(255,255,255,0.96);
+          color: #cc0000;
+          border: none;
+          border-radius: 999px;
+          padding: 12px 22px;
+          font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+          font-size: 12px;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+          cursor: pointer;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+          transition: transform .18s ease, filter .18s ease;
+        }
+        .u_btn:hover {
+          filter: brightness(.96);
+          transform: translateY(-2px);
+        }
+        .u_btn:active {
+          transform: translateY(0);
+        }
+        .u_btn._ghost {
+          background: rgba(255,255,255,0.82);
+        }
+        .u_msg {
+          padding: 12px 16px;
+          border-radius: 16px;
+          font-weight: 700;
+          letter-spacing: .06em;
+        }
+        .u_msg._error {
+          background: rgba(0,0,0,0.36);
+          border: 2px solid rgba(255,255,255,0.9);
+        }
+        .u_msg._ok {
+          background: rgba(255,255,255,0.9);
+          color: #cc0000;
+        }
+        @media (max-width: 760px) {
+          .u_wrap { gap: 28px; padding: 0 clamp(18px, 8vw, 32px); }
+          .u_intro { gap: 18px; }
         }
       `}</style>
 
       <div className="u_wrap">
         <section className="u_intro">
-          <h2 className="u_h2">HOW CAN ARCHIVES BE MADE MORE PARTICIPATORY?</h2>
-          <p className="u_p">Since institutional archives not only take special care to maintain their collection structures, but also endeavor to preserve materials and maintain their preservation in order to protect the actual sources and keep them alive in a certain way, certain hurdles become clear with regard to the accessibility of archives and the archival records stored in them, some of which are hidden.</p>
-          <p className="u_p">Against this backdrop, the digital space opens up new possibilities for accessibility. In addition to browsing, stumbling across and drifting through the collection of digital testimonies, users are given the opportunity to archive digital traces themselves. This participatory form rethinks accessibility: users are given a creative function in the archiving process.</p>
-          <p className="u_p">In this way, the character of an archive below becomes clear. The users become part of a new collectivization process of memories. If we consider memory as a resource, we could say that collectivization processes aim to use this resource in such a way that it is accessible to the entirety of the group.</p>
-          <p className="u_p">In this sense, collectivizing memory means ensuring that certain memories are not lost, but are available to the community as a whole and remain anchored as part of a collective memory. Just as queer and feminist emancipation movements have done by collecting their own pamphlets, protocols, posters, and personal legacies such as photos and diaries, thus keeping the upper hand on how their stories can be told and passed on as knowledge to others, the online archive HIV/AIDS Legacy also generates itself through the desire of self-responsibility and self-empowerment of memories, of history, of knowledge.</p>
+          <h2 className="u_introTitle">Share a trace</h2>
+          <p className="u_p">This archive gathers signals that do not sit quietly—snippets from chat logs, flyers left on club floors, policy drafts that tremble with urgency. Bring the pieces that keep vibrating so they can resonate with the rest.</p>
+          <p className="u_p">Upload captures, recordings, screenshots, or written accounts alongside the context that nourishes them. Describe how you found the material, who tended to it, and what it continues to move.</p>
+          <p className="u_p">Remove sensitive identifiers, confirm you have consent where needed, and note if access restrictions should stay attached to the trace.</p>
         </section>
-        <h3 className="u_title">Contribute your own</h3>
+        <h3 className="u_title">Contribution Form</h3>
         <form className={`u_form${success ? ' _success' : ''}`} onSubmit={handleSubmit}>
           <div className="u_row">
             <label>Title<span className="u_req">*</span></label>
@@ -211,33 +359,31 @@ export default function Upload() {
             </select>
           </div>
 
-          <div className="u_grid2">
-            <div className="u_row">
-              <label>Source (optional)</label>
-              <input className="u_input" type="url" value={source} onChange={(e) => setSource(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="u_row">
-              <label>Uploader<span className="u_req">*</span></label>
-              <input className="u_input" type="text" value={uploader} onChange={(e) => setUploader(e.target.value)} required />
-            </div>
+          <div className="u_row">
+            <label>Source (optional)</label>
+            <input className="u_input" type="url" value={source} onChange={(e) => setSource(e.target.value)} placeholder="https://…" />
           </div>
 
-          <div className="u_grid2">
-            <div className="u_row">
-              <label>Upload Thumbnail (optional)</label>
-              <input ref={thumbInputRef} className="u_input" type="file" accept="image/*" onChange={(e) => setThumbnail(e.target.files?.[0] || null)} disabled={!!thumbnailUrl} />
-            </div>
-            <div className="u_row">
-              <label>Thumbnail URL (optional)</label>
-              <input className="u_input" type="url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} placeholder="https://…" disabled={!!thumbnail} />
-            </div>
+          <div className="u_row">
+            <label>Uploader<span className="u_req">*</span></label>
+            <input className="u_input" type="text" value={uploader} onChange={(e) => setUploader(e.target.value)} required />
+          </div>
+
+          <div className="u_row">
+            <label>Upload Thumbnail (optional)</label>
+            <input ref={thumbInputRef} className="u_input" type="file" accept="image/*" onChange={(e) => setThumbnail(e.target.files?.[0] || null)} disabled={!!thumbnailUrl} />
+          </div>
+
+          <div className="u_row">
+            <label>Thumbnail URL (optional)</label>
+            <input className="u_input" type="url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} placeholder="https://…" disabled={!!thumbnail} />
           </div>
 
           <div className="u_row">
             <label>Files (up to 4, max 1MB each)</label>
             <div className="u_files">
               <input ref={fileInputRef} className="u_input" type="file" multiple onChange={handleFileChange} />
-              <span className="u_help">{files.length ? `${files.length} file(s) selected)` : 'No files selected.'}</span>
+              <span className="u_help">{files.length ? `${files.length} file(s) selected.` : 'No files selected.'}</span>
             </div>
           </div>
 
@@ -274,10 +420,10 @@ export default function Upload() {
           </div>
 
           {error && <div className="u_msg _error">{error}</div>}
-          {success && <div className="u_msg _ok">Thanks for your contribution!</div>}
+          {success && <div className="u_msg _ok">Trace received — thank you.</div>}
 
           <div className="u_btnRow">
-            <button type="submit" disabled={!canSubmit} className="u_btn">{busy ? 'Uploading…' : 'Upload'}</button>
+            <button type="submit" disabled={!canSubmit} className="u_btn">{busy ? 'Sending…' : 'Send Trace'}</button>
           </div>
         </form>
       </div>

@@ -59,7 +59,7 @@ function Hauptseite() {
     Archive: 'Browse all items',
     Shuffle: 'Discover at random',
     Upload: 'Contribute your own',
-    Imprint: 'Legal & contact',
+    Imprint: 'Imprint',
   };
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [titleText, setTitleText] = useState('TRACES OF HIV ARCHIVE');

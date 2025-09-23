@@ -39,20 +39,13 @@ export default function Shuffle({ onOpenItem }) {
   const [loading, setLoading] = useState(true);
   const [shuffling, setShuffling] = useState(false);
   const imgRef = useRef(null);
+  const shuffleTimerRef = useRef(null);
   const related = useMemo(() => {
     if (!current) return [];
-    const cats = safeArr(current.category).filter(Boolean);
-    if (!cats.length) return [];
-    const scored = items
-      .filter((it) => it.id !== current.id)
-      .map((it) => {
-        const c = safeArr(it.category).filter(Boolean);
-        const shared = c.filter((x) => cats.includes(x)).length;
-        return { ...it, __score: shared };
-      })
-      .filter((it) => it.__score > 0)
-      .sort((a, b) => b.__score - a.__score);
-    return scored.slice(0, 3);
+    const pool = items.filter((it) => it.id !== current.id);
+    if (!pool.length) return [];
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(3, shuffled.length));
   }, [items, current]);
 
   useEffect(() => {
@@ -83,7 +76,6 @@ export default function Shuffle({ onOpenItem }) {
     if (!items.length) return;
     setShuffling(true);
     let next;
-    // Avoid showing the same item twice in a row (if >1 item)
     if (items.length > 1 && current) {
       let idx;
       do {
@@ -93,7 +85,6 @@ export default function Shuffle({ onOpenItem }) {
     } else {
       next = items[Math.floor(Math.random() * items.length)];
     }
-    // Preload next image (if any)
     const imgUrl = (safeArr(next.fileURLs)[0] || next.thumbnailURL || null);
     if (imgUrl) {
       const img = new window.Image();
@@ -121,14 +112,23 @@ export default function Shuffle({ onOpenItem }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [doShuffle]);
 
+  useEffect(() => () => {
+    if (shuffleTimerRef.current) {
+      window.clearTimeout(shuffleTimerRef.current);
+      shuffleTimerRef.current = null;
+    }
+  }, []);
+
+  const activeItem = current;
+
   const createdAtText = useMemo(() => {
-    const ts = current?.createdAt;
+    const ts = activeItem?.createdAt;
     if (!ts) return '—';
     try {
       const d = ts?.toDate ? ts.toDate() : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
       return isNaN(d?.getTime?.()) ? '—' : new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
     } catch { return '—'; }
-  }, [current]);
+  }, [activeItem]);
 
   return (
     <div className="shuffle__wrap" role="region" aria-label="Shuffle detail">
@@ -136,17 +136,20 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__placeholder {
           width: 100%;
           aspect-ratio: 4/3;
-          border-radius: 12px;
-          border: 2px solid rgba(255,255,255,.95);
-          background: #eee;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 12px 34px rgba(0,0,0,.35);
-          overflow: hidden;
+          background: #eee;
         }
         :root { --shuffleGutter: clamp(32px, 8vw, 96px); }
-        .shuffle__wrap { color: #fff; width: min(1180px, 92vw); margin: 0 auto; padding: clamp(14px, 3.5vw, 24px) clamp(18px, 4vw, 32px) clamp(24px, 5vw, 36px); box-sizing: border-box; }
+        .shuffle__wrap {
+          color: #fff;
+          width: min(1180px, 100%);
+          margin: 0 auto;
+          padding: clamp(12px, 3.4vw, 22px) clamp(18px, 5vw, 36px) clamp(24px, 6vw, 40px);
+          box-sizing: border-box;
+        }
+        
         .shuffle__topBar { position: sticky; top: clamp(12px, 4vw, 24px); display: grid; place-items: center; gap: clamp(10px, 2vw, 16px); margin: 0 0 clamp(18px, 4vw, 28px); text-align: center; z-index: 3; }
         .shuffle__status { font-family: 'Arial, Helvetica, sans-serif'; opacity: .85; font-size: clamp(13px, 2.2vw, 16px); letter-spacing: .08em; text-transform: uppercase; }
         .shuffle__btn {
@@ -186,25 +189,52 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
         .shuffle__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
 
-        .shuffle__grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: clamp(12px, 2vw, 24px); align-items: start; }
-        .shuffle__media { position: relative; }
-        .shuffle__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%); mix-blend-mode: soft-light; opacity: .9; border-radius: 12px; }
-        .shuffle__media > * { width: 100%; height: 100%; object-fit: cover; }
+        .shuffle__grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: clamp(14px, 3vw, 28px); align-items: start; }
+        .shuffle__media {
+          position: relative;
+          border-radius: 12px;
+          border: 2px solid rgba(255,255,255,.95);
+          box-shadow: 0 12px 34px rgba(0,0,0,.35);
+          overflow: hidden;
+        }
+        .shuffle__media::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%);
+          mix-blend-mode: soft-light;
+          opacity: .9;
+        }
+        .shuffle__media > * {
+          width: 100%;
+          height: 100%;
+          aspect-ratio: 4/3;
+          display: block;
+          object-fit: cover;
+        }
         .shuffle__placeholder svg { width: 100%; height: 100%; object-fit: cover; }
-        .shuffle__img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,255,255,.95); box-shadow: 0 12px 34px rgba(0,0,0,.35); transform: translateZ(0); transition: opacity .24s ease, transform .28s cubic-bezier(.2,.8,.2,1); opacity: ${shuffling ? 0.86 : 1}; }
+        .shuffle__img {
+          opacity: ${shuffling ? 0.86 : 1};
+          transform: translateZ(0);
+          transition: opacity .24s ease, transform .28s cubic-bezier(.2,.8,.2,1), filter .24s ease;
+        }
+
+        .shuffle__trail { display: none; }
 
         .shuffle__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
         .shuffle__links { display: grid; gap: 6px; }
         .shuffle__links a { color: #fff; text-decoration: underline; word-break: break-all; }
         .shuffle__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
         @media (max-width: 900px) {
-          .shuffle__wrap { width: calc(100% - clamp(28px, 9vw, 64px)); padding: clamp(18px, 5vw, 28px) clamp(16px, 5.5vw, 26px) clamp(28px, 6vw, 36px); }
-          .shuffle__grid { grid-template-columns: 1fr; gap: clamp(16px, 5vw, 28px); }
+          .shuffle__wrap {
+            padding: clamp(18px, 7vw, 32px) clamp(18px, 8vw, 32px) clamp(28px, 9vw, 42px);
+          }
+          .shuffle__grid { grid-template-columns: 1fr; gap: clamp(18px, 6vw, 32px); }
           .shuffle__media::after { opacity: 0.8; }
           .shuffle__body { font-size: clamp(13px, 3.4vw, 17px); }
-          .shuffle__relatedList { display: flex; gap: clamp(12px, 4vw, 20px); overflow-x: auto; padding-bottom: 6px; }
-          .shuffle__card { min-width: clamp(200px, 60vw, 260px); flex: 0 0 auto; }
-          .shuffle__relatedList::-webkit-scrollbar { display: none; }
+          .shuffle__relatedList { display: grid; grid-template-columns: 1fr; gap: clamp(14px, 5vw, 22px); overflow: visible; padding-bottom: 0; }
+          .shuffle__card { min-width: unset; }
         }
         .shuffle__relatedWrap { margin-top: clamp(28px, 6vw, 42px); }
         .shuffle__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .06em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
@@ -224,24 +254,24 @@ export default function Shuffle({ onOpenItem }) {
           <div className="shuffle__status">
             {loading ? 'Loading…' : (items.length ? `${items.length} items` : 'No items')}
           </div>
-          <button type="button" className="shuffle__btn" onClick={doShuffle} disabled={!items.length}>
+          <button type="button" className="shuffle__btn" onClick={doShuffle} disabled={!items.length || shuffling}>
             {shuffling ? 'Shuffling…' : 'Shuffle'}
           </button>
         </div>
 
-      {!loading && current && (
+      {!loading && activeItem && (
         <>
-          <h2 className="shuffle__title">{current.title || 'Untitled'}</h2>
+          <h2 className="shuffle__title">{activeItem.title || 'Untitled'}</h2>
           <div className="shuffle__meta">
-            {current.type && <span className="shuffle__pillType">{current.type}</span>}
-            {safeArr(current.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
-            {safeArr(current.tags).length > 0 && <span>Tags: {safeArr(current.tags).join(', ')}</span>}
+            {activeItem.type && <span className="shuffle__pillType">{activeItem.type}</span>}
+            {safeArr(activeItem.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
+            {safeArr(activeItem.tags).length > 0 && <span>Tags: {safeArr(activeItem.tags).join(', ')}</span>}
             <span>{createdAtText}</span>
           </div>
 
           <div className="shuffle__grid">
             <div className="shuffle__media">
-              {!(safeArr(current.fileURLs)[0] || current.thumbnailURL) ? (
+              {!(safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL) ? (
                 <div
                   className="shuffle__placeholder"
                   aria-label="No image available"
@@ -251,28 +281,28 @@ export default function Shuffle({ onOpenItem }) {
                 <img
                   ref={imgRef}
                   className="shuffle__img"
-                  src={safeArr(current.fileURLs)[0] || current.thumbnailURL || ''}
+                  src={safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL || ''}
                   alt=""
                 />
               )}
             </div>
             <div className="shuffle__body">
-              {current.description || '—'}
-              {Array.isArray(current.additionalInfo) && current.additionalInfo.length > 0 && (
+              {activeItem.description || '—'}
+              {Array.isArray(activeItem.additionalInfo) && activeItem.additionalInfo.length > 0 && (
                 <>
                   <h4 className="shuffle__sectionTitle">Linked Resources</h4>
                   <div className="shuffle__links">
-                    {current.additionalInfo.map((u, i) => (
+                    {activeItem.additionalInfo.map((u, i) => (
                       <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
                     ))}
                   </div>
                 </>
               )}
-              {current.source && (
+              {activeItem.source && (
                 <>
                   <h4 className="shuffle__sectionTitle">Source</h4>
                   <div className="shuffle__links">
-                    <a href={current.source} target="_blank" rel="noopener noreferrer">{current.source}</a>
+                    <a href={activeItem.source} target="_blank" rel="noopener noreferrer">{activeItem.source}</a>
                   </div>
                 </>
               )}
