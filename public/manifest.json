@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "TRACES OF HIV",
+  "name": "TRACES OF HIV – Open HIV Archive",
+  "description": "An artist-led digital archive that curates online traces, artefacts, and narratives connected to HIV/AIDS.",
   "icons": [
     {
       "src": "favicon.ico",

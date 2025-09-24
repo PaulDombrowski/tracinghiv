@@ -38,8 +38,9 @@ export default function Shuffle({ onOpenItem }) {
   const [current, setCurrent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [shuffling, setShuffling] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const imgRef = useRef(null);
-  const shuffleTimerRef = useRef(null);
+  const animTimersRef = useRef([]);
   const related = useMemo(() => {
     if (!current) return [];
     const pool = items.filter((it) => it.id !== current.id);
@@ -47,6 +48,16 @@ export default function Shuffle({ onOpenItem }) {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(3, shuffled.length));
   }, [items, current]);
+
+  const clearAnimTimers = useCallback(() => {
+    animTimersRef.current.forEach(clearTimeout);
+    animTimersRef.current = [];
+  }, []);
+
+  const scheduleAnim = useCallback((fn, delay) => {
+    const handle = window.setTimeout(fn, delay);
+    animTimersRef.current.push(handle);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -73,8 +84,11 @@ export default function Shuffle({ onOpenItem }) {
 
   // Shuffle function that avoids repeating the same item, preloads the next image, and updates current.
   const doShuffle = useCallback(() => {
-    if (!items.length) return;
+    if (!items.length || shuffling) return;
+    clearAnimTimers();
+    setAnimating(true);
     setShuffling(true);
+
     let next;
     if (items.length > 1 && current) {
       let idx;
@@ -85,16 +99,20 @@ export default function Shuffle({ onOpenItem }) {
     } else {
       next = items[Math.floor(Math.random() * items.length)];
     }
+
     const imgUrl = (safeArr(next.fileURLs)[0] || next.thumbnailURL || null);
     if (imgUrl) {
       const img = new window.Image();
       img.src = imgUrl;
     }
-    setTimeout(() => {
+
+    scheduleAnim(() => {
       setCurrent(next);
       setShuffling(false);
-    }, 160);
-  }, [items, current]);
+    }, 260);
+
+    scheduleAnim(() => setAnimating(false), 620);
+  }, [items, current, shuffling, clearAnimTimers, scheduleAnim]);
   // Keyboard shortcuts for shuffling: S, space, ArrowRight
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -113,11 +131,8 @@ export default function Shuffle({ onOpenItem }) {
   }, [doShuffle]);
 
   useEffect(() => () => {
-    if (shuffleTimerRef.current) {
-      window.clearTimeout(shuffleTimerRef.current);
-      shuffleTimerRef.current = null;
-    }
-  }, []);
+    clearAnimTimers();
+  }, [clearAnimTimers]);
 
   const activeItem = current;
 
@@ -131,7 +146,7 @@ export default function Shuffle({ onOpenItem }) {
   }, [activeItem]);
 
   return (
-    <div className="shuffle__wrap" role="region" aria-label="Shuffle detail">
+    <div className={`shuffle__wrap${animating ? ' _animating' : ''}`} role="region" aria-label="Shuffle detail">
       <style>{`
         .shuffle__placeholder {
           width: 100%;
@@ -144,12 +159,17 @@ export default function Shuffle({ onOpenItem }) {
         :root { --shuffleGutter: clamp(32px, 8vw, 96px); }
         .shuffle__wrap {
           color: #fff;
+          width: 100%;
+          box-sizing: border-box;
+          padding: clamp(18px, 5vw, 36px) 0 clamp(28px, 6vw, 42px);
+        }
+        .shuffle__inner {
           width: min(1180px, 100%);
           margin: 0 auto;
-          padding: clamp(12px, 3.4vw, 22px) clamp(18px, 5vw, 36px) clamp(24px, 6vw, 40px);
           box-sizing: border-box;
+          padding: 0 clamp(18px, 5vw, 36px);
         }
-        
+
         .shuffle__topBar { position: sticky; top: clamp(12px, 4vw, 24px); display: grid; place-items: center; gap: clamp(10px, 2vw, 16px); margin: 0 0 clamp(18px, 4vw, 28px); text-align: center; z-index: 3; }
         .shuffle__status { font-family: 'Arial, Helvetica, sans-serif'; opacity: .85; font-size: clamp(13px, 2.2vw, 16px); letter-spacing: .08em; text-transform: uppercase; }
         .shuffle__btn {
@@ -196,6 +216,19 @@ export default function Shuffle({ onOpenItem }) {
           border: 2px solid rgba(255,255,255,.95);
           box-shadow: 0 12px 34px rgba(0,0,0,.35);
           overflow: hidden;
+          aspect-ratio: 4 / 3;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.08);
+        }
+        .shuffle__media::before {
+          content: '';
+          position: absolute;
+          inset: -18%;
+          background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0) 100%);
+          opacity: 0;
+          transform: translateX(-120%) skewX(-14deg);
         }
         .shuffle__media::after {
           content: '';
@@ -209,18 +242,15 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__media > * {
           width: 100%;
           height: 100%;
-          aspect-ratio: 4/3;
           display: block;
-          object-fit: cover;
+          object-fit: contain;
         }
-        .shuffle__placeholder svg { width: 100%; height: 100%; object-fit: cover; }
+        .shuffle__placeholder svg { width: 100%; height: 100%; object-fit: contain; }
         .shuffle__img {
           opacity: ${shuffling ? 0.86 : 1};
           transform: translateZ(0);
           transition: opacity .24s ease, transform .28s cubic-bezier(.2,.8,.2,1), filter .24s ease;
         }
-
-        .shuffle__trail { display: none; }
 
         .shuffle__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
         .shuffle__links { display: grid; gap: 6px; }
@@ -228,13 +258,34 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
         @media (max-width: 900px) {
           .shuffle__wrap {
-            padding: clamp(18px, 7vw, 32px) clamp(18px, 8vw, 32px) clamp(28px, 9vw, 42px);
+            padding: clamp(18px, 7vw, 32px) 0 clamp(28px, 9vw, 42px);
           }
+          .shuffle__inner { padding: 0 clamp(18px, 7vw, 28px); }
+          .shuffle__title { font-size: clamp(22px, 7.2vw, 46px); }
           .shuffle__grid { grid-template-columns: 1fr; gap: clamp(18px, 6vw, 32px); }
           .shuffle__media::after { opacity: 0.8; }
           .shuffle__body { font-size: clamp(13px, 3.4vw, 17px); }
           .shuffle__relatedList { display: grid; grid-template-columns: 1fr; gap: clamp(14px, 5vw, 22px); overflow: visible; padding-bottom: 0; }
           .shuffle__card { min-width: unset; }
+        }
+        .shuffle__wrap._animating .shuffle__media { animation: shufflePulse .6s cubic-bezier(.22,.61,.36,1); }
+        .shuffle__wrap._animating .shuffle__img { animation: shuffleTilt .6s cubic-bezier(.22,.61,.36,1); }
+        .shuffle__wrap._animating .shuffle__btn { animation: buttonFlash .6s ease; }
+
+        @keyframes shufflePulse {
+          0% { transform: scale(1); }
+          40% { transform: scale(0.95); }
+          100% { transform: scale(1); }
+        }
+        @keyframes shuffleTilt {
+          0% { filter: saturate(1) blur(0); }
+          40% { filter: saturate(0.7) blur(1px); }
+          100% { filter: saturate(1) blur(0); }
+        }
+        @keyframes buttonFlash {
+          0% { box-shadow: 0 18px 38px rgba(0,0,0,0.26); }
+          40% { box-shadow: 0 24px 48px rgba(255,255,255,0.45); }
+          100% { box-shadow: 0 18px 38px rgba(0,0,0,0.26); }
         }
         .shuffle__relatedWrap { margin-top: clamp(28px, 6vw, 42px); }
         .shuffle__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .06em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
@@ -250,6 +301,7 @@ export default function Shuffle({ onOpenItem }) {
         
       `}</style>
 
+      <div className="shuffle__inner">
         <div className="shuffle__topBar">
           <div className="shuffle__status">
             {loading ? 'Loading…' : (items.length ? `${items.length} items` : 'No items')}
@@ -259,75 +311,80 @@ export default function Shuffle({ onOpenItem }) {
           </button>
         </div>
 
-      {!loading && activeItem && (
-        <>
-          <h2 className="shuffle__title">{activeItem.title || 'Untitled'}</h2>
-          <div className="shuffle__meta">
-            {activeItem.type && <span className="shuffle__pillType">{activeItem.type}</span>}
-            {safeArr(activeItem.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
-            {safeArr(activeItem.tags).length > 0 && <span>Tags: {safeArr(activeItem.tags).join(', ')}</span>}
-            <span>{createdAtText}</span>
-          </div>
+        {!loading && activeItem && (
+          <>
+            <h2 className="shuffle__title">{activeItem.title || 'Untitled'}</h2>
+            <div className="shuffle__meta">
+              {activeItem.type && <span className="shuffle__pillType">{activeItem.type}</span>}
+              {safeArr(activeItem.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
+              {safeArr(activeItem.tags).length > 0 && <span>Tags: {safeArr(activeItem.tags).join(', ')}</span>}
+              <span>{createdAtText}</span>
+            </div>
 
-          <div className="shuffle__grid">
-            <div className="shuffle__media">
-              {!(safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL) ? (
-                <div
-                  className="shuffle__placeholder"
-                  aria-label="No image available"
-                  dangerouslySetInnerHTML={{ __html: NO_IMAGE_SVG }}
-                />
-              ) : (
-                <img
-                  ref={imgRef}
-                  className="shuffle__img"
-                  src={safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL || ''}
-                  alt=""
-                />
-              )}
-            </div>
-            <div className="shuffle__body">
-              {activeItem.description || '—'}
-              {Array.isArray(activeItem.additionalInfo) && activeItem.additionalInfo.length > 0 && (
-                <>
-                  <h4 className="shuffle__sectionTitle">Linked Resources</h4>
-                  <div className="shuffle__links">
-                    {activeItem.additionalInfo.map((u, i) => (
-                      <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
-                    ))}
-                  </div>
-                </>
-              )}
-              {activeItem.source && (
-                <>
-                  <h4 className="shuffle__sectionTitle">Source</h4>
-                  <div className="shuffle__links">
-                    <a href={activeItem.source} target="_blank" rel="noopener noreferrer">{activeItem.source}</a>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-      <div className="shuffle__relatedWrap">
-        <h4 className="shuffle__relatedTitle">Further Echoes</h4>
-        {related.length === 0 ? (
-          <div style={{opacity:.8}}>No similar items yet.</div>
-        ) : (
-          <div className="shuffle__relatedList">
-            {related.map((r) => (
-              <div key={r.id} className="shuffle__card" onClick={() => (onOpenItem ? onOpenItem(r.id) : setCurrent(r))} role="button" tabIndex={0}
-                   onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); (onOpenItem ? onOpenItem(r.id) : setCurrent(r)); } }}>
-                <img className="shuffle__thumb" src={(safeArr(r.fileURLs)[0] || r.thumbnailURL || '')} alt="" />
-                <div className="shuffle__cardBody">
-                  <div className="shuffle__cardTitle">{r.title || 'Untitled'}</div>
-                  {r.type && <span className="shuffle__cardType">{r.type}</span>}
-                </div>
+            <div className="shuffle__grid">
+              <div className="shuffle__media">
+                {!(safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL) ? (
+                  <div
+                    className="shuffle__placeholder"
+                    aria-label="No image available"
+                    dangerouslySetInnerHTML={{ __html: NO_IMAGE_SVG }}
+                  />
+                ) : (
+                  <img
+                    ref={imgRef}
+                    className="shuffle__img"
+                    src={safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL || ''}
+                    alt={activeItem.title ? `${activeItem.title} – archive media` : 'Archive entry media'}
+                  />
+                )}
               </div>
-            ))}
-          </div>
+              <div className="shuffle__body">
+                {activeItem.description || '—'}
+                {Array.isArray(activeItem.additionalInfo) && activeItem.additionalInfo.length > 0 && (
+                  <>
+                    <h4 className="shuffle__sectionTitle">Linked Resources</h4>
+                    <div className="shuffle__links">
+                      {activeItem.additionalInfo.map((u, i) => (
+                        <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {activeItem.source && (
+                  <>
+                    <h4 className="shuffle__sectionTitle">Source</h4>
+                    <div className="shuffle__links">
+                      <a href={activeItem.source} target="_blank" rel="noopener noreferrer">{activeItem.source}</a>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </>
         )}
+        <div className="shuffle__relatedWrap">
+          <h4 className="shuffle__relatedTitle">Further Echoes</h4>
+          {related.length === 0 ? (
+            <div style={{opacity:.8}}>No echoes yet.</div>
+          ) : (
+            <div className="shuffle__relatedList">
+              {related.map((r) => (
+                <div key={r.id} className="shuffle__card" onClick={() => (onOpenItem ? onOpenItem(r.id) : setCurrent(r))} role="button" tabIndex={0}
+                     onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); (onOpenItem ? onOpenItem(r.id) : setCurrent(r)); } }}>
+                  <img
+                    className="shuffle__thumb"
+                    src={(safeArr(r.fileURLs)[0] || r.thumbnailURL || '')}
+                    alt={r.title ? `${r.title} – related entry` : 'Related archive item'}
+                  />
+                  <div className="shuffle__cardBody">
+                    <div className="shuffle__cardTitle">{r.title || 'Untitled'}</div>
+                    {r.type && <span className="shuffle__cardType">{r.type}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

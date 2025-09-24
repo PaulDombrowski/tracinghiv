@@ -2,6 +2,22 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, getDocs, query as fsQuery, orderBy, doc, getDoc, where, limit } from "firebase/firestore";
 import { motion } from "framer-motion";
+
+const DETAIL_PLACEHOLDER = `
+<svg width="100%" height="100%" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="240" rx="18" fill="#eee"/>
+  <rect x="22" y="64" width="276" height="132" rx="12" fill="#ddd"/>
+  <rect x="52" y="96" width="80" height="48" rx="8" fill="#e8e8e8"/>
+  <rect x="152" y="112" width="96" height="20" rx="6" fill="#e0e0e0"/>
+  <rect x="152" y="142" width="64" height="16" rx="5" fill="#e0e0e0"/>
+  <rect x="52" y="154" width="44" height="12" rx="4" fill="#e0e0e0"/>
+  <rect x="22" y="36" width="120" height="16" rx="5" fill="#e8e8e8"/>
+  <rect x="22" y="20" width="64" height="10" rx="4" fill="#e0e0e0"/>
+  <rect x="174" y="36" width="124" height="16" rx="5" fill="#e8e8e8"/>
+  <rect x="174" y="20" width="64" height="10" rx="4" fill="#e0e0e0"/>
+  <rect x="22" y="212" width="276" height="8" rx="3" fill="#e0e0e0"/>
+</svg>
+`;
 export function ItemDetail({ id, onBack, onClose, onOpen }) {
   const [item, setItem] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -33,26 +49,19 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
     (async () => {
       if (!item) return;
       const cats = safeArr(item.category).filter(Boolean);
-      if (!cats.length) { setRelated([]); return; }
       try {
         setRelLoading(true);
         const coll = collection(db, 'uploads');
-        // Query by any shared category; then filter/sort client-side
-        const q = fsQuery(coll, where('category', 'array-contains-any', cats), limit(10));
+        const q = cats.length
+          ? fsQuery(coll, where('category', 'array-contains-any', cats), limit(24))
+          : fsQuery(coll, orderBy('createdAt', 'desc'), limit(24));
         const snap = await getDocs(q);
         const list = [];
         snap.forEach((docu) => list.push({ id: docu.id, ...docu.data() }));
-        // Exclude self, score by number of shared categories
-        const scored = list
-          .filter((d) => d.id !== item.id)
-          .map((d) => {
-            const dCats = safeArr(d.category).filter(Boolean);
-            const shared = dCats.filter((c) => cats.includes(c)).length;
-            return { ...d, __score: shared };
-          })
-          .sort((a, b) => b.__score - a.__score);
-        const top3 = scored.slice(0, 3);
-        if (alive) setRelated(top3);
+        const pool = list.filter((d) => d.id !== item.id);
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        const picks = shuffled.slice(0, Math.min(3, shuffled.length));
+        if (alive) setRelated(picks);
       } catch (e) {
         console.error('Related load error:', e);
         if (alive) setRelated([]);
@@ -146,7 +155,19 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
               </div>
               <div className="detail__grid">
                 <div className="detail__media">
-                  <img className="detail__img" src={(safeArr(item.fileURLs)[0] || item.thumbnailURL || '')} alt="" />
+                  {!(safeArr(item.fileURLs)[0] || item.thumbnailURL) ? (
+                    <div
+                      className="detail__placeholder"
+                      dangerouslySetInnerHTML={{ __html: DETAIL_PLACEHOLDER }}
+                      aria-label="No image available"
+                    />
+                  ) : (
+                    <img
+                      className="detail__img"
+                      src={safeArr(item.fileURLs)[0] || item.thumbnailURL || ''}
+                      alt={item.title ? `${item.title} – archive media` : 'Archive entry media'}
+                    />
+                  )}
                 </div>
                 <div className="detail__body">
                   {item.description || '—'}
@@ -231,7 +252,11 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
                     {related.map((r) => (
                       <div key={r.id} className="detail__card" onClick={() => onOpen?.(r.id)} role="button" tabIndex={0}
                            onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); onOpen?.(r.id);} }}>
-                        <img className="detail__thumb" src={(Array.isArray(r.fileURLs) && r.fileURLs[0]) || r.thumbnailURL || ''} alt="" />
+                        <img
+                          className="detail__thumb"
+                          src={(Array.isArray(r.fileURLs) && r.fileURLs[0]) || r.thumbnailURL || ''}
+                          alt={r.title ? `${r.title} – related entry` : 'Related archive item'}
+                        />
                         <div className="detail__cardBody">
                           <div className="detail__cardTitle">{r.title || 'Untitled'}</div>
                           {r.type && <span className="detail__cardType">{r.type}</span>}
