@@ -1,70 +1,170 @@
-# Getting Started with Create React App
+# Traces of HIV - Archive for Viral Memory
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Traces of HIV is an experimental web archive that stages community memory about HIV/AIDS as an evolving performance. The interface blends live-rendered typography, a 3D model of viral data, curated reading lists, and community contributions sourced from the field. The project is developed by Elias Capelle and Paul Dombrowski as part of the HivAidsArchive/Traces of HIV research initiative.
 
-## Available Scripts
+## Live Experience
 
-In the project directory, you can run:
+- Production: https://pauldombrowski.github.io/tracinghiv/
+- Built for contemporary Chromium, Firefox, and Safari browsers on desktop and mobile.
 
-### `npm start`
+## Key Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Immersive landing stage** with a reactive glitch title (`src/TitleHeader.jsx`), custom cursor trail (`src/CursorDot.jsx`), and a Three.js HIV model rendered through React Three Fiber (`src/HivModelStage.jsx`).
+- **PDF performance mode** that streams pages from `public/masti_upload_version-4.pdf`, applies parallax narration (`src/StageColumns.jsx`), and lazy-renders canvases using `pdf.js` workers for smooth scrolling.
+- **Research archive overlay** backed by Firebase Firestore (`src/Archive.jsx`) with live search, responsive layouts, hover previews, and deep item detail views including related material suggestions.
+- **Community shuffle view** (`src/Shuffle.jsx`) that surfaces random artefacts, keyboard shortcuts, and animated transitions to inspire serendipitous exploration.
+- **Contribution workflow** (`src/Upload.jsx`) that validates metadata, enforces file-size limits, uploads assets to Firebase Storage, and writes structured entries into Firestore.
+- **Context modules** for about, imprint, and bibliographies (`src/About.jsx`, `src/Imprint.jsx`, `src/RightTextComponent.js`) that pair research framing with archival theory.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Tech Stack
 
-### `npm test`
+- React 18 with Create React App tooling (`react-scripts`).
+- React Three Fiber, Drei, and Three.js for the responsive model stage.
+- Framer Motion for micro-interactions and animation choreography.
+- Firebase (Firestore + Storage) for data persistence and asset delivery.
+- pdf.js for high-resolution PDF rendering.
+- GitHub Pages deployment via `gh-pages`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Getting Started
 
-### `npm run build`
+1. Install dependencies
+   ```bash
+   npm install
+   ```
+2. Start the development server (defaults to http://localhost:3000)
+   ```bash
+   npm start
+   ```
+3. Build a production bundle
+   ```bash
+   npm run build
+   ```
+4. Deploy to GitHub Pages (publishes `/build` to the `gh-pages` branch)
+   ```bash
+   npm run deploy
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+> Recommended: Node 18+ and npm 9+ for matching the version matrix used during development.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Firebase Setup
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The app expects a Firebase project named `hivarchive`, but any project will work as long as the config matches. The configuration is hard-coded in three modules:
 
-### `npm run eject`
+- `src/Archive.jsx`
+- `src/Shuffle.jsx`
+- `src/Upload.jsx`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+For production use you may want to move these values into environment variables (e.g., `.env` + `process.env.REACT_APP_*`) to avoid committing secrets.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Firestore
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- Enable Cloud Firestore in **production mode** (secure access rules are required; see below).
+- Create a collection called `uploads`. Each document represents one archive item.
+- Expected fields (create via Upload form or seed manually):
+  - `title` (string)
+  - `description` (string)
+  - `category` (array of strings)
+  - `type` (string)
+  - `source` (string URL, optional)
+  - `fileURLs` (array of storage URLs)
+  - `thumbnailURL` (string URL, optional)
+  - `additionalInfo` (array of URLs/notes)
+  - `uploader` (string)
+  - `motivation` (string)
+  - `mood` (string)
+  - `tags` (array of strings)
+  - `createdAt` (timestamp; created automatically by the Upload form)
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Sample security rules (adjust to your needs):
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /uploads/{docId} {
+      allow read: if request.time < timestamp.date(9999, 1, 1);
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}
+```
 
-## Learn More
+### Storage
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- Enable Firebase Storage and create the following folders (created automatically on first upload):
+  - `uploads/` for artefact files (max 1MB per file, up to 4 files per submission).
+  - `thumbnails/` for poster frames used in listings.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Example Storage rule skeleton:
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.resource.size < 1 * 1024 * 1024;
+    }
+    match /thumbnails/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.resource.size < 1 * 1024 * 1024;
+    }
+  }
+}
+```
 
-### Code Splitting
+## Asset Requirements
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The landing stage relies on local assets bundled in `public/`:
 
-### Analyzing the Bundle Size
+- `masti_upload_version-4.pdf` - source document rendered in the PDF performance mode.
+- `pdf.worker.min.js` - pdf.js worker file referenced from `StageColumns.jsx`.
+- `hivpdf.glb` - 3D model displayed in the React Three Fiber canvas.
+- `reflexions.jpg` - HDRI/environment map for reflective lighting.
+- Optional hero imagery (`1.png`, `prep.png`, etc.) used across the interface.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+When replacing assets, keep file names or update the corresponding imports.
 
-### Making a Progressive Web App
+## Project Layout
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```
+src/
+├── App.js                 # Entry that mounts the main stage
+├── Hauptseite.js          # Primary scene orchestration and menu logic
+├── TitleHeader.jsx        # Interactive glitch headline
+├── CursorDot.jsx          # Custom cursor / trail effect
+├── StageColumns.jsx       # PDF renderer + parallax text pairing
+├── HivModelStage.jsx      # Three.js Canvas for the HIV model
+├── RedMenuOverlay.jsx     # Fullscreen overlay with drawing canvas and navigation
+├── Archive.jsx            # Firestore-powered archive list + detail view
+├── Shuffle.jsx            # Random artefact surfacing
+├── Upload.jsx             # Contribution form posting to Firestore/Storage
+├── About.jsx              # Project statement
+├── Imprint.jsx            # Legal imprint
+├── RightTextComponent.js  # Bibliography scroller beside PDF
+└── ...
+```
 
-### Advanced Configuration
+## Accessibility & Performance Notes
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- Reduced motion preferences are honoured in scroll/animation hooks where practical.
+- PDF rendering lazily loads canvases via an IntersectionObserver, keeping main-thread work manageable on mid-range devices.
+- Interactive overlays manage focus, `aria` labels, and ESC/keyboard shortcuts to support keyboard navigation.
+- Hover previews degrade gracefully on touch devices by disabling the floating image logic.
 
-### Deployment
+## Troubleshooting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- **Blank PDF column**: confirm `public/pdf.worker.min.js` exists and is reachable at runtime.
+- **Firebase permission errors**: review Firestore/Storage rules and ensure authenticated access matches your deployment needs.
+- **3D model missing**: check that `hivpdf.glb` and `reflexions.jpg` are present and not blocked by CORS.
+- **Deployment issues**: delete the `build/` folder and rerun `npm run build` before `npm run deploy` to ensure a clean bundle.
 
-### `npm run build` fails to minify
+## Roadmap Ideas
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Externalise Firebase config into environment variables and CI secrets.
+- Add pagination or filtering facets to the archive table for large collections.
+- Provide moderation tooling for incoming submissions.
+- Extend the shuffle view with audio/visual previews when available.
+
+---
+
+Feel free to open issues or PRs with improvements. Contributions that strengthen archival safety, accessibility, or storytelling depth are especially welcome.

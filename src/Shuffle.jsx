@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, orderBy, query as fsQuery } from 'firebase/firestore';
+import { AnimatePresence, motion } from 'framer-motion';
 // SVG placeholder for missing images
 const NO_IMAGE_SVG = `
 <svg width="100%" height="100%" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,6 +33,58 @@ if (!getApps().length) initializeApp(firebaseConfig);
 const db = getFirestore();
 
 const safeArr = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%*&?@';
+
+function useScrambleText(text, triggerKey) {
+  const [display, setDisplay] = useState(text || '');
+
+  useEffect(() => {
+    const target = text ?? '';
+    if (!target) {
+      setDisplay('');
+      return () => {};
+    }
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      setDisplay(target);
+      return () => {};
+    }
+
+    let frame = 0;
+    const length = target.length || 1;
+    const totalFrames = Math.min(48, Math.max(18, length * 2));
+    let raf = null;
+
+    const update = () => {
+      const reveal = Math.floor((frame / totalFrames) * length);
+      const output = target.split('').map((char, idx) => {
+        if (char === ' ' || char === '\n') return char;
+        if (idx <= reveal) return char;
+        return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      }).join('');
+      setDisplay(output);
+      frame += 1;
+      if (frame <= totalFrames) {
+        raf = window.requestAnimationFrame(update);
+      } else {
+        setDisplay(target);
+      }
+    };
+
+    setDisplay('');
+    raf = window.requestAnimationFrame(update);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [text, triggerKey]);
+
+  return display;
+}
+
+function ScrambleText({ text, triggerKey, as: Component = 'span', ...rest }) {
+  const value = useScrambleText(text, triggerKey);
+  return <Component {...rest}>{value}</Component>;
+}
 
 export default function Shuffle({ onOpenItem }) {
   const [items, setItems] = useState([]);
@@ -82,12 +135,23 @@ export default function Shuffle({ onOpenItem }) {
     })();
   }, []);
 
+  const scrollToTop = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const region = typeof document !== 'undefined' ? document.querySelector('._scrollRegion') : null;
+    if (region && typeof region.scrollTo === 'function') {
+      region.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
   // Shuffle function that avoids repeating the same item, preloads the next image, and updates current.
   const doShuffle = useCallback(() => {
     if (!items.length || shuffling) return;
     clearAnimTimers();
     setAnimating(true);
     setShuffling(true);
+    scrollToTop();
 
     let next;
     if (items.length > 1 && current) {
@@ -112,7 +176,7 @@ export default function Shuffle({ onOpenItem }) {
     }, 260);
 
     scheduleAnim(() => setAnimating(false), 620);
-  }, [items, current, shuffling, clearAnimTimers, scheduleAnim]);
+  }, [items, current, shuffling, clearAnimTimers, scheduleAnim, scrollToTop]);
   // Keyboard shortcuts for shuffling: S, space, ArrowRight
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -135,6 +199,7 @@ export default function Shuffle({ onOpenItem }) {
   }, [clearAnimTimers]);
 
   const activeItem = current;
+  const activeKey = activeItem?.id || 'placeholder';
 
   const createdAtText = useMemo(() => {
     const ts = activeItem?.createdAt;
@@ -209,50 +274,46 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__pill { display: inline-block; padding: 6px 10px; border: 2px solid rgba(255,255,255,.92); border-radius: 999px; font-size: .82rem; }
         .shuffle__pillType { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; color:#cc0000; font-size:.82rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
 
-        .shuffle__grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: clamp(14px, 3vw, 28px); align-items: start; }
+        .shuffle__grid { display: grid; grid-template-columns: 1fr; gap: clamp(18px, 3vw, 32px); align-items: start; }
         .shuffle__media {
           position: relative;
+          width: 100%;
           border-radius: 12px;
-          border: 2px solid rgba(255,255,255,.95);
-          box-shadow: 0 12px 34px rgba(0,0,0,.35);
+          border: 3px solid rgba(255,255,255,.96);
+          box-shadow: 0 14px 38px rgba(0,0,0,.34);
           overflow: hidden;
-          aspect-ratio: 4 / 3;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0,0,0,0.08);
-        }
-        .shuffle__media::before {
-          content: '';
-          position: absolute;
-          inset: -18%;
-          background: linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0) 100%);
-          opacity: 0;
-          transform: translateX(-120%) skewX(-14deg);
+          background: rgba(0,0,0,0.12);
         }
         .shuffle__media::after {
           content: '';
           position: absolute;
           inset: 0;
           pointer-events: none;
-          background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.22) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.18) 100%);
+          background: radial-gradient(120% 120% at 50% 50%, rgba(147,112,219,.15) 0%, rgba(0,0,0,.0) 42%, rgba(0,0,0,.12) 100%);
           mix-blend-mode: soft-light;
-          opacity: .9;
+          opacity: .6;
         }
-        .shuffle__media > * {
+        .shuffle__frame {
+          position: relative;
           width: 100%;
-          height: 100%;
+          display: block;
+        }
+        .shuffle__frame > * {
+          width: 100%;
+          height: auto;
           display: block;
           object-fit: contain;
         }
-        .shuffle__placeholder svg { width: 100%; height: 100%; object-fit: contain; }
+        .shuffle__placeholder svg { width: 100%; height: auto; object-fit: contain; }
         .shuffle__img {
+          width: 100%;
+          height: auto;
           opacity: ${shuffling ? 0.86 : 1};
           transform: translateZ(0);
           transition: opacity .24s ease, transform .28s cubic-bezier(.2,.8,.2,1), filter .24s ease;
         }
-
         .shuffle__body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; font-size: clamp(13px, 1.7vw, 18px); }
+        .shuffle__body p { margin: 0 0 clamp(12px, 2.2vw, 18px); }
         .shuffle__links { display: grid; gap: 6px; }
         .shuffle__links a { color: #fff; text-decoration: underline; word-break: break-all; }
         .shuffle__sectionTitle { margin: 16px 0 8px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
@@ -313,52 +374,107 @@ export default function Shuffle({ onOpenItem }) {
 
         {!loading && activeItem && (
           <>
-            <h2 className="shuffle__title">{activeItem.title || 'Untitled'}</h2>
+            <ScrambleText
+              as="h2"
+              className="shuffle__title"
+              text={activeItem.title || 'Untitled'}
+              triggerKey={`${activeKey}-title`}
+            />
             <div className="shuffle__meta">
-              {activeItem.type && <span className="shuffle__pillType">{activeItem.type}</span>}
-              {safeArr(activeItem.category).map((c,i) => <span className="shuffle__pill" key={i}>{c}</span>)}
-              {safeArr(activeItem.tags).length > 0 && <span>Tags: {safeArr(activeItem.tags).join(', ')}</span>}
-              <span>{createdAtText}</span>
+              {activeItem.type && (
+                <ScrambleText
+                  key={`${activeKey}-type`}
+                  as="span"
+                  className="shuffle__pillType"
+                  text={activeItem.type}
+                  triggerKey={`${activeKey}-type`}
+                />
+              )}
+              {safeArr(activeItem.category).map((c, i) => (
+                <ScrambleText
+                  key={`${activeKey}-cat-${i}`}
+                  as="span"
+                  className="shuffle__pill"
+                  text={c}
+                  triggerKey={`${activeKey}-cat-${i}`}
+                />
+              ))}
+              {safeArr(activeItem.tags).length > 0 && (
+                <ScrambleText
+                  as="span"
+                  text={`Tags: ${safeArr(activeItem.tags).join(', ')}`}
+                  triggerKey={`${activeKey}-tags`}
+                />
+              )}
+              <ScrambleText
+                as="span"
+                text={createdAtText}
+                triggerKey={`${activeKey}-date`}
+              />
             </div>
 
             <div className="shuffle__grid">
               <div className="shuffle__media">
-                {!(safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL) ? (
-                  <div
-                    className="shuffle__placeholder"
-                    aria-label="No image available"
-                    dangerouslySetInnerHTML={{ __html: NO_IMAGE_SVG }}
-                  />
-                ) : (
-                  <img
-                    ref={imgRef}
-                    className="shuffle__img"
-                    src={safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL || ''}
-                    alt={activeItem.title ? `${activeItem.title} – archive media` : 'Archive entry media'}
-                  />
-                )}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeKey}
+                    className="shuffle__frame"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.32, ease: [0.22, 0.8, 0.2, 1] }}
+                  >
+                    {!(safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL) ? (
+                      <div
+                        className="shuffle__placeholder"
+                        aria-label="No image available"
+                        dangerouslySetInnerHTML={{ __html: NO_IMAGE_SVG }}
+                      />
+                    ) : (
+                      <img
+                        ref={imgRef}
+                        className="shuffle__img"
+                        src={safeArr(activeItem.fileURLs)[0] || activeItem.thumbnailURL || ''}
+                        alt={activeItem.title ? `${activeItem.title} – archive media` : 'Archive entry media'}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
-              <div className="shuffle__body">
-                {activeItem.description || '—'}
-                {Array.isArray(activeItem.additionalInfo) && activeItem.additionalInfo.length > 0 && (
-                  <>
-                    <h4 className="shuffle__sectionTitle">Linked Resources</h4>
-                    <div className="shuffle__links">
-                      {activeItem.additionalInfo.map((u, i) => (
-                        <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {activeItem.source && (
-                  <>
-                    <h4 className="shuffle__sectionTitle">Source</h4>
-                    <div className="shuffle__links">
-                      <a href={activeItem.source} target="_blank" rel="noopener noreferrer">{activeItem.source}</a>
-                    </div>
-                  </>
-                )}
-              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`body-${activeKey}`}
+                  className="shuffle__body"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.32, ease: [0.22, 0.8, 0.2, 1] }}
+                >
+                  <ScrambleText
+                    as="p"
+                    text={activeItem.description || '—'}
+                    triggerKey={`${activeKey}-description`}
+                  />
+                  {Array.isArray(activeItem.additionalInfo) && activeItem.additionalInfo.length > 0 && (
+                    <>
+                      <h4 className="shuffle__sectionTitle">Linked Resources</h4>
+                      <div className="shuffle__links">
+                        {activeItem.additionalInfo.map((u, i) => (
+                          <a key={i} href={u} target="_blank" rel="noopener noreferrer">{u}</a>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {activeItem.source && (
+                    <>
+                      <h4 className="shuffle__sectionTitle">Source</h4>
+                      <div className="shuffle__links">
+                        <a href={activeItem.source} target="_blank" rel="noopener noreferrer">{activeItem.source}</a>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </>
         )}
