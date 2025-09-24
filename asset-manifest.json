@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/tracinghiv/static/css/main.e6c13ad2.css",
-    "main.js": "/tracinghiv/static/js/main.341b6052.js",
+    "main.css": "/tracinghiv/static/css/main.587ccf25.css",
+    "main.js": "/tracinghiv/static/js/main.2f5e2ef0.js",
     "static/js/453.aafd1220.chunk.js": "/tracinghiv/static/js/453.aafd1220.chunk.js",
     "index.html": "/tracinghiv/index.html",
-    "main.e6c13ad2.css.map": "/tracinghiv/static/css/main.e6c13ad2.css.map",
-    "main.341b6052.js.map": "/tracinghiv/static/js/main.341b6052.js.map",
+    "main.587ccf25.css.map": "/tracinghiv/static/css/main.587ccf25.css.map",
+    "main.2f5e2ef0.js.map": "/tracinghiv/static/js/main.2f5e2ef0.js.map",
     "453.aafd1220.chunk.js.map": "/tracinghiv/static/js/453.aafd1220.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.e6c13ad2.css",
-    "static/js/main.341b6052.js"
+    "static/css/main.587ccf25.css",
+    "static/js/main.2f5e2ef0.js"
   ]
 }
