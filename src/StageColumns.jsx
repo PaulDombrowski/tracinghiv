@@ -154,6 +154,29 @@ export default function StageColumns({ menuOpen, pdfOn }) {
     return () => io.disconnect();
   }, [totalPages, menuOpen, pdfOn]);
 
+  useEffect(() => {
+    if (!pdfOn || menuOpen) return;
+    if (typeof window === 'undefined') return;
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (!coarse) return;
+    const pdfEl = pdfContainerRef.current;
+    if (!pdfEl) return;
+
+    const updateTilt = () => {
+      const max = Math.max(1, pdfEl.scrollHeight - pdfEl.clientHeight);
+      const progress = pdfEl.scrollTop / max;
+      const clamped = Math.min(1, Math.max(0, progress));
+      document.documentElement.style.setProperty('--touch-tilt', clamped.toFixed(3));
+    };
+
+    updateTilt();
+    pdfEl.addEventListener('scroll', updateTilt, { passive: true });
+    return () => {
+      pdfEl.removeEventListener('scroll', updateTilt);
+      document.documentElement.style.removeProperty('--touch-tilt');
+    };
+  }, [menuOpen, pdfOn, totalPages]);
+
   // --- Smooth Wheel Scroll (Desktop) ---
   useEffect(() => {
     const pdfEl = pdfContainerRef.current;

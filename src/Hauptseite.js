@@ -69,6 +69,23 @@ function Hauptseite() {
   const lastScrollYRef = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
   const scrollDirRef = useRef(1); // 1 = down, -1 = up
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mq = window.matchMedia('(pointer: coarse)');
+    const update = () => {
+      if (typeof document !== 'undefined') {
+        document.body.classList.toggle('_touchDevice', mq.matches);
+      }
+    };
+    update();
+    mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
+    return () => {
+      mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update);
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('_touchDevice');
+      }
+    };
+  }, []);
+  useEffect(() => {
     const lastTickRef = { t: 0 };
     const tick = (strength = 2) => {
       const now = performance.now();
@@ -259,6 +276,7 @@ function Hauptseite() {
     >
       {/* globale Styles */}
       <style>{`
+        :root { --touch-tilt: .5; }
         ._layout { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
 
         /* RED FADE MENU OVERLAY */
@@ -343,6 +361,15 @@ function Hauptseite() {
           opacity: 1;
           transform: translateY(0) scale(1);
           filter: blur(0px);
+        }
+        body._touchDevice._pdfOn ._pdfWrap {
+          transform-origin: center;
+        }
+        body._touchDevice._pdfOn ._pdfWrap._visible {
+          transform: translateY(calc((0.5 - var(--touch-tilt, .5)) * 28px)) rotateX(calc((var(--touch-tilt, .5) - .5) * 12deg)) scale(1);
+        }
+        body._touchDevice._pdfOn ._pdfWrap._visible canvas {
+          transform: rotateX(calc((var(--touch-tilt, .5) - .5) * 10deg));
         }
         ._pdfWrap:hover {
           transform: translateY(-2px) scale(1.002) rotateX(0deg) !important;
