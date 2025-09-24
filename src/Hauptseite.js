@@ -310,6 +310,7 @@ function Hauptseite() {
         ._menuOpen ._titleLine { color: #ffffff; text-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 14px rgba(255,255,255,0.28); }
         /* Centered 3D overlay (non-interactive, performance-friendly) */
         html, body, #root { margin: 0; background: transparent; }
+        html, body { overflow: hidden; height: 100%; }
         ._centerStage { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index: 4; pointer-events: none; }
         ._stageFrame {
           width: 100vw; height: 100vh;
