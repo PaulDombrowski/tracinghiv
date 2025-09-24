@@ -247,19 +247,22 @@ function Hauptseite() {
         if (!menuOpen && !isInteractive) setMenuOpen(true);
       }}
       style={{
-        width: '100vw',
-        height: '100vh',
+        width: '100%',
+        minHeight: '100vh',
         background: 'transparent',
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'flex-start',
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* globale Styles */}
       <style>{`
+        ._layout { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
+
         /* RED FADE MENU OVERLAY */
-        ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
+        ._menuOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
         ._menuOverlay::before { content: ''; position: absolute; inset: 0; background: rgba(255,0,0,0.0); transition: background 260ms ease; }
         ._menuContent { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transform: scale(0.98); transition: opacity 260ms ease, transform 260ms ease; }
         ._menuList { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(8px, 2.6vh, 22px); }
