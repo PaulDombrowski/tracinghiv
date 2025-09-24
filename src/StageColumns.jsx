@@ -248,6 +248,7 @@ export default function StageColumns({ menuOpen, pdfOn }) {
             key="pdf"
             ref={pdfContainerRef}
             className="_noScroll _surface _pdf"
+            data-scrollbar="light"
             style={{
               flex: 1, zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center',
               height: 'calc(100vh - var(--hdrH, 120px))', marginTop: 'var(--hdrH, 120px)',
@@ -289,6 +290,7 @@ export default function StageColumns({ menuOpen, pdfOn }) {
             key="righttext"
             ref={textContainerRef}
             className="_noScroll _rightText _surface"
+            data-scrollbar="light"
             style={{
               flexBasis: '340px',
               height: 'calc(100vh - var(--hdrH, 120px))',
@@ -329,7 +331,7 @@ export default function StageColumns({ menuOpen, pdfOn }) {
               <h3 className="_sheetTitle">Bibliographies · Traces of HIV</h3>
               <button type="button" className="_sheetClose" onClick={() => setSheetOpen(false)}>Close</button>
             </div>
-            <div className="_sheetBody">
+            <div className="_sheetBody" data-scrollbar="light">
               <RightTextComponent />
             </div>
           </div>

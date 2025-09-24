@@ -11,3 +11,45 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+:root {
+  color-scheme: dark;
+  --scroll-track: rgba(255, 255, 255, 0.08);
+  --scroll-thumb: rgba(255, 255, 255, 0.7);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.88);
+}
+
+body,
+[data-scrollbar="light"] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+body::-webkit-scrollbar,
+[data-scrollbar="light"]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body::-webkit-scrollbar-track,
+[data-scrollbar="light"]::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 999px;
+}
+
+body::-webkit-scrollbar-thumb,
+[data-scrollbar="light"]::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+body::-webkit-scrollbar-thumb:hover,
+[data-scrollbar="light"]::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+body::-webkit-scrollbar-corner,
+[data-scrollbar="light"]::-webkit-scrollbar-corner {
+  background: transparent;
+}

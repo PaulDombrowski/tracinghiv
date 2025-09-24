@@ -164,7 +164,7 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
         .detail__cardType { display:inline-block; padding:4px 8px; border-radius:999px; background:#fff; color:#cc0000; font-size:.72rem; font-family: 'Arial Black', Arial, Helvetica, sans-serif; }
       `}</style>
 
-      <div className="detail__scroll">
+      <div className="detail__scroll" data-scrollbar="light">
         <div className="detail__inner">
           {loading && <div>Loading…</div>}
           {!loading && !item && <div>Not found.</div>}
@@ -343,65 +343,6 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
           )}
         </div>
       </div>
-
-      <AnimatePresence>
-        {!allowHoverPreview && mobilePreview && (
-          <>
-            <motion.div
-              className="arch__mobilePreviewBackdrop"
-              onClick={() => setMobilePreview(null)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.24 }}
-            />
-            <motion.div
-              className="arch__mobilePreview"
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.94 }}
-              transition={{ duration: 0.28, ease: [0.22, 0.8, 0.2, 1] }}
-            >
-              <div className="arch__mobilePreviewInner">
-                <button type="button" className="arch__mobilePreviewClose" onClick={() => setMobilePreview(null)}>Close</button>
-                <div className="arch__mobilePreviewImage">
-                  {mobilePreview.image ? (
-                    <img src={mobilePreview.image} alt={mobilePreview.title ? `${mobilePreview.title} preview` : 'Archive entry preview'} />
-                  ) : (
-                    <div className="detail__placeholder" dangerouslySetInnerHTML={{ __html: DETAIL_PLACEHOLDER }} aria-label="No image available" />
-                  )}
-                </div>
-                <ScrambleText
-                  as="h3"
-                  className="arch__mobilePreviewTitle"
-                  text={mobilePreview.title}
-                  triggerKey={`${mobilePreview.id}-mobile-title`}
-                />
-                <div className="arch__mobilePreviewMeta">
-                  {mobilePreview.type && <span className="_type">{mobilePreview.type}</span>}
-                  {mobilePreview.category?.map((c, i) => (
-                    <span key={`${mobilePreview.id}-cat-${i}`}>{c}</span>
-                  ))}
-                  <span>{fmtDate(mobilePreview.createdAt)}</span>
-                </div>
-                {mobilePreview.description && (
-                  <p className="arch__mobilePreviewDescription">{mobilePreview.description}</p>
-                )}
-                {mobilePreview.tags && mobilePreview.tags.length > 0 && (
-                  <div className="arch__mobilePreviewTags">Tags: {mobilePreview.tags.join(', ')}</div>
-                )}
-                <button
-                  type="button"
-                  className="arch__mobilePreviewAction"
-                  onClick={() => openArchiveItem(mobilePreview, true)}
-                >
-                  Open Detail
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -513,19 +454,6 @@ export default function Archive({ onClose, onOpenItem }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!mobilePreview) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mobilePreview]);
-
-  useEffect(() => {
-    if (allowHoverPreview && mobilePreview) setMobilePreview(null);
-  }, [allowHoverPreview, mobilePreview]);
-
   const filtered = useMemo(() => {
     if (!debounced) return rows;
     return rows.filter((r) => {
@@ -549,6 +477,21 @@ export default function Archive({ onClose, onOpenItem }) {
     }
   }, [allowHoverPreview]);
 
+  useEffect(() => {
+    if (!mobilePreview) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobilePreview]);
+
+  useEffect(() => {
+    if (allowHoverPreview && mobilePreview) {
+      setMobilePreview(null);
+    }
+  }, [allowHoverPreview, mobilePreview]);
+
   const openArchiveItem = useCallback((item, forceDetail = false) => {
     if (!item) return;
     if (!forceDetail && !allowHoverPreview) {
@@ -569,15 +512,15 @@ export default function Archive({ onClose, onOpenItem }) {
         type: item.type || '',
         category: safeArr(item.category),
         tags: safeArr(item.tags),
-        fileURLs: safeArr(item.fileURLs),
-        thumbnailURL: item.thumbnailURL || '',
         description: item.description || '',
         createdAt: item.createdAt,
       });
       return;
     }
     setMobilePreview(null);
-    if (typeof onOpenItem === 'function') onOpenItem(item.id);
+    if (typeof onOpenItem === 'function') {
+      onOpenItem(item.id);
+    }
   }, [allowHoverPreview, mobilePreview, onOpenItem]);
 
   const onEnter = (item, e) => {
@@ -602,13 +545,6 @@ export default function Archive({ onClose, onOpenItem }) {
     setHoverTitle("");
     setHoverImage("");
   };
-
-  const titleSize = React.useMemo(() => {
-    if (!hoverTitle) return "7rem";
-    const words = hoverTitle.split(/\s+/).length;
-    if (words > 12) return `${Math.max(6, 12 - words)}rem`;
-    return "7rem";
-  }, [hoverTitle]);
 
   return (
     <>
@@ -758,82 +694,6 @@ export default function Archive({ onClose, onOpenItem }) {
         }
         .hoverImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .archCards { display: none; }
-
-        .arch__mobilePreviewBackdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.62);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          z-index: 13;
-        }
-        .arch__mobilePreview {
-          position: fixed;
-          inset: 0;
-          z-index: 14;
-          display: grid;
-          place-items: center;
-          pointer-events: none;
-          padding: clamp(20px, 6vw, 32px);
-        }
-        .arch__mobilePreviewInner {
-          position: relative;
-          pointer-events: auto;
-          width: min(92vw, 420px);
-          border-radius: 18px;
-          border: 2px solid rgba(255,255,255,0.92);
-          background: rgba(16,0,0,0.92);
-          box-shadow: 0 28px 68px rgba(0,0,0,0.42);
-          padding: clamp(18px, 6vw, 28px);
-          display: grid;
-          gap: clamp(14px, 4vw, 22px);
-          color: #fff;
-        }
-        .arch__mobilePreviewClose {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          border: none;
-          background: rgba(255,255,255,0.92);
-          color: #cc0000;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: .08em;
-          padding: 8px 12px;
-          border-radius: 999px;
-          cursor: pointer;
-          box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-        }
-        .arch__mobilePreviewImage {
-          border-radius: 14px;
-          overflow: hidden;
-          border: 2px solid rgba(255,255,255,0.94);
-          background: rgba(0,0,0,0.2);
-        }
-        .arch__mobilePreviewImage img { display: block; width: 100%; height: auto; }
-        .arch__mobilePreviewTitle { margin: 0; font-size: clamp(20px, 7vw, 28px); line-height: 1.1; letter-spacing: .08em; }
-        .arch__mobilePreviewMeta { display: flex; flex-wrap: wrap; gap: 6px 8px; font-size: clamp(11px, 3.2vw, 14px); letter-spacing: .06em; text-transform: uppercase; }
-        .arch__mobilePreviewMeta span { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.82); }
-        .arch__mobilePreviewMeta ._type { background: #fff; color: #cc0000; font-weight: 900; }
-        .arch__mobilePreviewDescription { font-family: Arial, Helvetica, sans-serif; font-size: clamp(13px, 3.4vw, 16px); line-height: 1.6; opacity: .92; }
-        .arch__mobilePreviewTags { font-family: Arial, Helvetica, sans-serif; font-size: clamp(11px, 3vw, 14px); letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
-        .arch__mobilePreviewAction {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 12px 18px;
-          border-radius: 999px;
-          border: 2px solid rgba(255,255,255,0.95);
-          background: rgba(255,255,255,0.12);
-          color: #fff;
-          text-transform: uppercase;
-          letter-spacing: .12em;
-          font-weight: 800;
-          cursor: pointer;
-          box-shadow: 0 12px 26px rgba(0,0,0,0.28);
-        }
-        .arch__mobilePreviewAction:active { transform: scale(.98); }
-
         @media (max-width: 850px) {
           .arch__container { top: calc(var(--hdrH, 120px) + 56px); width: calc(100% - clamp(28px, 10vw, 68px)); padding: clamp(10px, 4vw, 18px) clamp(14px, 5vw, 24px) clamp(18px, 5vw, 28px); box-sizing: border-box; }
           .arch__header { gap: 8px; width: 100%; justify-content: center; }
@@ -908,7 +768,7 @@ export default function Archive({ onClose, onOpenItem }) {
           </motion.div>
         )}
 
-        <div className="arch__body">
+        <div className="arch__body" data-scrollbar="light">
           {!isCompact ? (
             <table className="archTable">
               <thead>
@@ -939,14 +799,7 @@ export default function Archive({ onClose, onOpenItem }) {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.18, delay: idx * 0.02 }}
-                        tabIndex={0}
-                        onClick={() => openArchiveItem(item)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            openArchiveItem(item, true);
-                          }
-                        }}
+                        onClick={() => openArchiveItem(item, true)}
                         onMouseEnter={(e) => onEnter(item, e)}
                         onMouseLeave={onLeave}
                       >
