@@ -279,7 +279,7 @@ function Hauptseite() {
         ._menuOverlay::before { content: ''; position: absolute; inset: 0; background: rgba(255,0,0,0.0); transition: background 260ms ease; }
         ._menuContent { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transform: scale(0.98); transition: opacity 260ms ease, transform 260ms ease; }
         ._menuList { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(8px, 2.6vh, 22px); }
-        ._menuItem { text-align: center; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; color: #fff; font-size: clamp(18px, 6vw, 54px); letter-spacing: clamp(1px, 0.5vw, 8px); line-height: 1; cursor: pointer; user-select: none; }
+        ._menuItem { text-align: center; font-family: 'Arial Black', Arial, Helvetica, sans-serif; text-transform: uppercase; color: #fff; font-size: clamp(24px, 8vw, 62px); letter-spacing: clamp(2px, 0.8vw, 10px); line-height: 1.08; cursor: pointer; user-select: none; }
 
         /* Floating red menu button (bottom-left, elegant) */
         ._menuFabBtn {
@@ -317,7 +317,7 @@ function Hauptseite() {
 
         /* Tablet: Panel etwas schmaler */
         ._menuOpen ._menuOverlay { pointer-events: auto; }
-        ._menuOpen ._menuOverlay::before { background: rgba(255, 0, 0, 0.82); }
+        ._menuOpen ._menuOverlay::before { background: rgba(255, 0, 0, 0.58); }
         ._menuOpen ._menuOverlay ._menuContent { opacity: 1; transform: scale(1); }
         /* Title turns white while menu is open */
         ._menuOpen ._titleLine { color: #ffffff; text-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 14px rgba(255,255,255,0.28); }

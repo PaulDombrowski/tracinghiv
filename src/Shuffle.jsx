@@ -300,7 +300,6 @@ export default function Shuffle({ onOpenItem }) {
         .shuffle__relatedWrap { margin-top: clamp(28px, 6vw, 42px); }
         .shuffle__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .06em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
         .shuffle__relatedList { display: flex; flex-wrap: nowrap; gap: clamp(12px, 2.4vw, 22px); overflow-x: auto; padding-bottom: 6px; }
-        .shuffle__relatedList::-webkit-scrollbar { display: none; }
         .shuffle__card { flex: 0 0 clamp(200px, 22vw, 260px); }
         .shuffle__card { cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
         .shuffle__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
@@ -432,7 +431,7 @@ export default function Shuffle({ onOpenItem }) {
           {related.length === 0 ? (
             <div style={{opacity:.8}}>No echoes yet.</div>
           ) : (
-            <div className="shuffle__relatedList">
+            <div className="shuffle__relatedList" data-scrollbar="light">
               {related.map((r) => (
                 <div key={r.id} className="shuffle__card" onClick={() => (onOpenItem ? onOpenItem(r.id) : setCurrent(r))} role="button" tabIndex={0}
                      onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); (onOpenItem ? onOpenItem(r.id) : setCurrent(r)); } }}>
