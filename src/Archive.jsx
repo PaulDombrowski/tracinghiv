@@ -154,7 +154,18 @@ export function ItemDetail({ id, onBack, onClose, onOpen }) {
         }
         .detail__relatedWrap { width: min(1180px, 100%); margin: clamp(36px, 7vw, 48px) auto 0; }
         .detail__relatedTitle { margin: 16px 0 10px; font-family: 'Arial Black', Arial, Helvetica, sans-serif; font-size: clamp(13px, 1.6vw, 16px); letter-spacing: .03em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,.18); padding-bottom: 6px; }
-        .detail__relatedList { display: flex; flex-wrap: nowrap; gap: clamp(12px, 2.4vw, 22px); overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+        .detail__relatedList {
+          display: flex;
+          flex-wrap: nowrap;
+          gap: clamp(12px, 2.4vw, 22px);
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 6px;
+          -webkit-overflow-scrolling: touch;
+          touch-action: pan-x;
+          scrollbar-width: thin;
+          scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+        }
         .detail__card { flex: 0 0 clamp(200px, 22vw, 260px); cursor: pointer; user-select: none; border: 2px solid rgba(255,255,255,.95); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); transition: transform .18s cubic-bezier(.2,.8,.2,1), background .18s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); display: flex; flex-direction: column; }
         .detail__card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
         .detail__thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
