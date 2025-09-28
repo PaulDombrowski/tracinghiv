@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/tracinghiv/static/css/main.587ccf25.css",
-    "main.js": "/tracinghiv/static/js/main.64e4d6e4.js",
-    "static/js/453.aafd1220.chunk.js": "/tracinghiv/static/js/453.aafd1220.chunk.js",
-    "index.html": "/tracinghiv/index.html",
-    "main.587ccf25.css.map": "/tracinghiv/static/css/main.587ccf25.css.map",
-    "main.64e4d6e4.js.map": "/tracinghiv/static/js/main.64e4d6e4.js.map",
-    "453.aafd1220.chunk.js.map": "/tracinghiv/static/js/453.aafd1220.chunk.js.map"
+    "main.css": "/static/css/main.587ccf25.css",
+    "main.js": "/static/js/main.5d44a44c.js",
+    "static/js/453.aafd1220.chunk.js": "/static/js/453.aafd1220.chunk.js",
+    "index.html": "/index.html",
+    "main.587ccf25.css.map": "/static/css/main.587ccf25.css.map",
+    "main.5d44a44c.js.map": "/static/js/main.5d44a44c.js.map",
+    "453.aafd1220.chunk.js.map": "/static/js/453.aafd1220.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.587ccf25.css",
-    "static/js/main.64e4d6e4.js"
+    "static/js/main.5d44a44c.js"
   ]
 }
