@@ -1,7 +1,7 @@
 {
   "name": "tracesofhiv",
   "version": "0.1.0",
-  "homepage": "https://pauldombrowski.github.io/tracinghiv/",
+  "homepage": "https://tracing-hiv.com/",
   "private": true,
   "dependencies": {
     "@react-three/drei": "^9.122.0",

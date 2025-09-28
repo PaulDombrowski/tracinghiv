@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function About() {
   return (
-    <section className="aboutFancy" aria-label="About — Traces of HIV">
+    <section className="aboutFancy" aria-label="About — Tracing HIV Archive">
       <style>{`
         .aboutFancy { position: relative; }
         /* Layout */
@@ -110,14 +110,14 @@ export default function About() {
 
       <div className="aboutWrap">
         <h2 className="aboutTitle">
-          <span className="aboutTitleLine">Traces of HIV</span>
+          <span className="aboutTitleLine">Tracing HIV Archive</span>
           <span className="aboutSubtitle">Archive for Viral Memory</span>
           <span className="aboutMeta">Elias Capelle · Paul Dombrowski</span>
         </h2>
         <div className="aboutRule" />
 
         <div className="aboutBody">
-          <p className="aboutP"><strong>Traces of HIV</strong> behaves like a working score for viral memory. We read residues in caches, classifieds, livestreams, club flyers, memorial threads. Each artefact is handled as material that still vibrates, a signal carrying the entanglement of care, surveillance, activism, and desire.</p>
+          <p className="aboutP"><strong>Tracing HIV Archive</strong> behaves like a working score for viral memory. We read residues in caches, classifieds, livestreams, club flyers, memorial threads. Each artefact is handled as material that still vibrates, a signal carrying the entanglement of care, surveillance, activism, and desire.</p>
 
           <p className="aboutP">The archive advances through rehearsals rather than completions. Entries arrive as annotations, glitches, drafts, or echoes that refuse closure. We stage them so that research, nightlife, mutual aid and policy language remain in friction, showing how knowledge about HIV is continually rehearsed in public and clandestine spaces alike.</p>
 

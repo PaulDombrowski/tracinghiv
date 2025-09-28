@@ -53,7 +53,7 @@ function Hauptseite() {
     };
   }, [pdfOn]);
 
-  // --- INTERAKTIVER TITEL (TRACES OF HIV) ---
+  // --- INTERAKTIVER TITEL (TRACING HIV ARCHIVE) ---
   const MENU_SENTENCES = {
     About: 'What is this archive?',
     Archive: 'Browse all items',
@@ -62,7 +62,7 @@ function Hauptseite() {
     Imprint: 'Imprint',
   };
   const [selectedMenu, setSelectedMenu] = useState(null);
-  const [titleText, setTitleText] = useState('TRACES OF HIV ARCHIVE');
+  const [titleText, setTitleText] = useState('TRACING HIV ARCHIVE');
   const [glitchSet, setGlitchSet] = useState(new Set());
   const timeoutsRef = useRef([]);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
@@ -157,7 +157,7 @@ function Hauptseite() {
       setTitleText(MENU_SENTENCES[selectedMenu]);
       triggerGlitch(3);
     } else {
-      setTitleText('TRACES OF HIV ARCHIVE');
+      setTitleText('TRACING HIV ARCHIVE');
     }
   }, [selectedMenu]);
 
